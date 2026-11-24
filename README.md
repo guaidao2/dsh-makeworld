@@ -85,7 +85,6 @@ DeepSeek Harness 的任务账本插件。它给会话一份只追加的账本：
 
 它的前身是 [dsh-lingeye](https://github.com/guaidao2/dsh-lingeye)（灵眼渗透测试模式）。继承的是内核：信念四态、意图即实验、证据锚定、三档覆盖、可复核结论、可逆遗忘。换掉的是壳：35 个工具降到 5 个，九个子 agent 预设砍掉，领域词表换成通用词（asset→entity、finding→claim、retest→recheck），八页签 Web 面改成文件账本，不再要求「进入模式」。
 
-设计取舍与诊断写在 [docs/makeworld-design.md](docs/makeworld-design.md)。
 
 ## 安装
 

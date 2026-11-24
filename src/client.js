@@ -769,7 +769,7 @@ window.__ModuleLoader__.load({
     const LINE_2 = `1px solid ${C.borderColor}`
 
     /*
-     * Surfaces (docs/ledger-ui.md §1.1). The baseline is the platform panel in
+     * Surfaces. The baseline is the platform panel in
      * this same file — `McpPanel` draws cards as `C.layer + C.border` and its
      * inputs as `C.layer2 + C.border`. On a page whose background is `base`,
      * that ladder translates to:
