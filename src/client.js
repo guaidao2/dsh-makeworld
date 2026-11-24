@@ -59,6 +59,7 @@ window.__ModuleLoader__.load({
       'family.entities': '实体',
       'family.evidence': '证据',
       'family.templates': '模板',
+      familyCounts: '家族计数',
       'status.incomplete': '未完成',
       'status.satisfied': '已满足',
       'status.deferred': '已搁置',
@@ -168,6 +169,7 @@ window.__ModuleLoader__.load({
       'family.entities': 'entities',
       'family.evidence': 'evidence',
       'family.templates': 'templates',
+      familyCounts: 'Family counts',
       'status.incomplete': 'incomplete',
       'status.satisfied': 'satisfied',
       'status.deferred': 'deferred',
@@ -254,6 +256,7 @@ window.__ModuleLoader__.load({
       info: 'var(--dsw-alias-state-info, #6e56cf)',
       borderColor: 'var(--dsw-alias-border-l2, rgba(127,127,127,.28))',
       borderColorSoft: 'var(--dsw-alias-border-l1, rgba(127,127,127,.16))',
+      /* layer-3 exists only for hover states. */
       /* --dsw-alias-label-caption and --dsw-alias-bg-base are the two tokens
          dsh-pentest leans on for meta text and nested blocks. */
       caption: 'var(--dsw-alias-label-caption, #8b8d98)',
@@ -645,8 +648,26 @@ window.__ModuleLoader__.load({
     const LINE_1 = `1px solid ${C.borderColorSoft}`
     const LINE_2 = `1px solid ${C.borderColor}`
 
+    /*
+     * Surfaces (docs/ledger-ui.md §1.1). The baseline is the platform panel in
+     * this same file — `McpPanel` draws cards as `C.layer + C.border` and its
+     * inputs as `C.layer2 + C.border`. On a page whose background is `base`,
+     * that ladder translates to:
+     *
+     *   page    base, unpainted
+     *   card    layer-1 + border-l1
+     *   nested  layer-2 + border-l2   (number boxes, entry cards, inner blocks)
+     *   input   base + border-l1      (code blocks — the only recessed surface)
+     *
+     * `base` must never fill something inside a `layer-1` card: it reads as a
+     * hole punched in the card. A nested block that should not read as another
+     * colour step is drawn as an outline card (border + radius, no fill).
+     */
     const L = {
       page: {
+        /* One column for the header, the tabs and both tabs' bodies. 1120 matches
+           the platform panel, so switching pages never shifts the left edge. */
+        maxWidth: '1120px', margin: '0 auto',
         boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px',
         flex: '1 1 auto', height: '100%', minHeight: 0, width: '100%',
         padding: '16px 20px',
@@ -715,7 +736,7 @@ window.__ModuleLoader__.load({
       grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '12px', alignItems: 'stretch', minWidth: 0 },
       card: {
         display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0,
-        border: LINE_2, borderRadius: '12px', padding: '12px 14px', background: C.layer,
+        border: C.border, borderRadius: '12px', padding: '12px 14px', background: C.layer,
       },
       cardHead: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', minWidth: 0 },
       cardTitle: { margin: 0, fontSize: '13px', lineHeight: '20px', fontWeight: 600, color: C.text, whiteSpace: 'nowrap' },
@@ -725,28 +746,40 @@ window.__ModuleLoader__.load({
       boxes: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))', gap: '8px', minWidth: 0 },
       box: {
         display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0,
-        padding: '8px 10px', border: LINE_1, borderRadius: '8px', background: C.base,
+        padding: '8px 10px', border: LINE_2, borderRadius: '8px', background: C.layer2,
       },
       boxValue: { fontSize: '20px', lineHeight: '24px', fontWeight: 600, color: C.text },
       boxLabel: { fontSize: '11px', lineHeight: '16px', color: C.caption, overflowWrap: 'anywhere' },
-      familyLine: { display: 'flex', flexWrap: 'wrap', gap: '2px 10px', fontSize: '12px', lineHeight: '18px', color: C.caption, minWidth: 0 },
+      /* A second row of metrics under the four boxes: value 13/600 in body ink,
+         label 11px caption, tabular figures so the numbers line up when they
+         wrap. A hairline separates it from the coverage boxes above. */
+      familyRow: {
+        display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 22px',
+        minWidth: 0, paddingTop: '10px', borderTop: LINE_1,
+      },
+      family: { display: 'inline-flex', alignItems: 'baseline', gap: '6px', minWidth: 0 },
+      familyValue: { fontSize: '13px', lineHeight: '20px', fontWeight: 600, color: C.text, fontVariantNumeric: 'tabular-nums' },
+      familyLabel: { fontSize: '11px', lineHeight: '16px', color: C.caption, whiteSpace: 'nowrap' },
       field: { display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 },
       fieldLabel: { fontSize: '11px', lineHeight: '16px', fontWeight: 600, color: C.caption },
       chips: { display: 'flex', flexWrap: 'wrap', gap: '4px 6px', minWidth: 0 },
-      chip: { fontSize: '12px', lineHeight: '18px', color: C.muted, background: C.base, borderRadius: '4px', padding: '0 6px', overflowWrap: 'anywhere', minWidth: 0 },
+      /* Outline chip: a fill would add a step the three-step ladder does not have. */
+      chip: { fontSize: '12px', lineHeight: '18px', color: C.muted, background: 'transparent', border: LINE_1, borderRadius: '4px', padding: '0 6px', overflowWrap: 'anywhere', minWidth: 0 },
 
       /* Frontier: equal-width cards, no rail, no coloured border. */
       entries: { display: 'flex', flexDirection: 'column', gap: '8px', margin: 0, padding: 0, listStyle: 'none', minWidth: 0 },
+      /* One step above the section card, never a hole. */
       entry: {
         display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0,
-        padding: '10px 12px', border: LINE_1, borderRadius: '8px', background: C.base,
+        padding: '10px 12px', border: LINE_2, borderRadius: '8px', background: C.layer2,
       },
       entryHead: { display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 },
       entryTitle: { flex: '1 1 auto', minWidth: 0, margin: 0, fontSize: '15px', lineHeight: '22px', fontWeight: 600, color: C.text, overflowWrap: 'anywhere' },
       entryMeta: { margin: 0, fontSize: '12px', lineHeight: '18px', color: C.caption, overflowWrap: 'anywhere' },
       entryText: { margin: 0, fontSize: '13px', lineHeight: '20px', color: C.muted, overflowWrap: 'anywhere' },
       blocks: { display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 },
-      block: { display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: C.layer2 },
+      /* Inside an entry (already layer-2): outline only, no fourth step. */
+      block: { display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, padding: '8px 10px', borderRadius: '8px', border: LINE_2, background: 'transparent' },
       blockLabel: { fontSize: '11px', lineHeight: '16px', fontWeight: 600, color: C.caption },
 
       /* Grouped rows (review / gaps): a name line, then plain id + text + kind. */
@@ -777,25 +810,35 @@ window.__ModuleLoader__.load({
       },
       markdownPanel: {
         boxSizing: 'border-box', flex: '1 1 auto', minHeight: '160px', minWidth: 0,
-        overflow: 'auto', border: LINE_2, borderRadius: '8px', background: C.base, padding: '16px 20px',
+        /* Horizontal padding lives on the column so the 1024px measure stays
+           centred on wide windows instead of drifting with the panel edge. */
+        overflow: 'auto', overflowX: 'hidden', border: LINE_1, borderRadius: '8px',
+        background: C.layer, padding: '20px 0',
       },
+      /* Fluid measure: never wider than 1024px, never wider than the panel.
+         The base size is 13px/1.7; LEDGER_CSS lifts it to 14px/1.75 once the
+         viewport is wide enough to carry it. Blocks inherit both. */
       mdColumn: {
-        maxWidth: '72ch', margin: '0 auto', width: '100%',
+        /* Width and type size live in LEDGER_CSS so the wide-screen breakpoint wins. */
+        maxWidth: 'min(100%, 860px)', margin: '0 auto', width: '100%', boxSizing: 'border-box',
+        padding: '0 28px',
         display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0,
-        fontSize: '13px', lineHeight: 1.7, color: C.muted,
+        color: C.muted,
       },
       notice: {
-        margin: 0, padding: '16px', borderRadius: '8px', border: LINE_2, background: C.base,
+        margin: 0, padding: '16px', borderRadius: '8px', border: LINE_1, background: C.layer,
         fontSize: '13px', lineHeight: '20px', color: C.muted, textAlign: 'center', overflowWrap: 'anywhere',
       },
       empty: { margin: 0, padding: '16px 0', fontSize: '12px', lineHeight: '18px', textAlign: 'center', color: C.caption },
       code: { fontFamily: MONO, fontSize: '11px', lineHeight: '18px', color: C.caption, overflowWrap: 'anywhere', minWidth: 0 },
-      inlineCode: { fontFamily: MONO, fontSize: '12px', background: C.layer, borderRadius: '4px', padding: '0 4px' },
+      inlineCode: { fontFamily: MONO, fontSize: '12px', background: C.layer2, borderRadius: '4px', padding: '0 4px' },
+      /* A code block is a recessed surface: base + hairline, like an input. */
       pre: {
-        margin: 0, fontFamily: MONO, fontSize: '12px', lineHeight: 1.6,
-        background: C.layer, borderRadius: '6px', padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre',
+        margin: 0, maxWidth: '100%', fontFamily: MONO, fontSize: '12px', lineHeight: 1.6,
+        background: C.base, border: LINE_1, borderRadius: '6px', padding: '10px 12px',
+        overflowX: 'auto', whiteSpace: 'pre',
       },
-      table: { width: '100%', borderCollapse: 'collapse', fontSize: '12px' },
+      table: { width: '100%', maxWidth: '100%', borderCollapse: 'collapse', fontSize: '12px', overflowX: 'auto' },
       th: { textAlign: 'left', padding: '4px 8px', borderBottom: LINE_2, color: C.caption, fontWeight: 500 },
       td: { padding: '5px 8px', borderBottom: LINE_1, verticalAlign: 'top', overflowWrap: 'anywhere' },
       footnote: { margin: 0, fontSize: '11px', lineHeight: '16px', color: C.caption },
@@ -1053,12 +1096,12 @@ window.__ModuleLoader__.load({
         if (block.type === 'quote') {
           return h('blockquote', {
             key,
-            style: { margin: 0, padding: '0 0 0 10px', borderLeft: `2px solid ${C.borderColor}`, color: C.muted, fontSize: '13px', lineHeight: 1.7, overflowWrap: 'anywhere' },
+            style: { margin: 0, maxWidth: '100%', padding: '0 0 0 10px', borderLeft: `2px solid ${C.borderColor}`, color: C.muted, fontSize: 'inherit', lineHeight: 'inherit', overflowWrap: 'anywhere' },
           }, inlineNodes(block.text, key))
         }
         if (block.type === 'list') {
           return h(block.ordered ? 'ol' : 'ul', {
-            key, style: { margin: 0, paddingLeft: '20px', display: 'grid', gap: '4px', fontSize: '13px', lineHeight: 1.7 },
+            key, style: { margin: 0, paddingLeft: '20px', display: 'grid', gap: '4px', fontSize: 'inherit', lineHeight: 'inherit' },
           }, block.items.map((item, itemIndex) => h('li', {
             key: `${key}-l${itemIndex}`,
             style: { margin: 0, paddingLeft: item.depth > 0 ? `${item.depth * 12}px` : 0, overflowWrap: 'anywhere' },
@@ -1070,7 +1113,7 @@ window.__ModuleLoader__.load({
             h('tbody', null, block.rows.map((row, rowIndex) => h('tr', { key: `r${rowIndex}` },
               row.map((cell, cellIndex) => h('td', { key: `c${cellIndex}`, style: L.td }, cell))))))
         }
-        return h('p', { key, style: { margin: 0, color: C.muted, fontSize: '13px', lineHeight: 1.7, overflowWrap: 'anywhere' } }, inlineNodes(block.text, key))
+        return h('p', { key, style: { margin: 0, color: C.muted, fontSize: 'inherit', lineHeight: 'inherit', overflowWrap: 'anywhere' } }, inlineNodes(block.text, key))
       })
     }
 
@@ -1233,8 +1276,12 @@ window.__ModuleLoader__.load({
         }, boxes.map(box => h('div', { key: box.key, style: L.box },
           h('span', { style: L.boxValue }, String(box.value)),
           h('span', { style: L.boxLabel }, box.label)))),
-        h('div', { style: L.familyLine },
-          Object.keys(FAMILY_LABEL).filter(key => key !== 'entities').map(key => `${label(`family.${key}`)} ${(counts || {})[key] || 0}`).join(' · ')),
+        h('div', { style: L.familyRow, role: 'list', 'aria-label': label('familyCounts') },
+          Object.keys(FAMILY_LABEL).filter(key => key !== 'entities').map(key => h('div', {
+            key, style: L.family, role: 'listitem',
+          },
+          h('span', { style: L.familyValue }, String((counts || {})[key] || 0)),
+          h('span', { style: L.familyLabel }, label(`family.${key}`))))),
         h('div', { style: L.field },
           h('span', { style: L.fieldLabel }, `${label('untestedEntities')} ${untouched.length}`),
           untouched.length === 0
@@ -1363,7 +1410,7 @@ window.__ModuleLoader__.load({
         ? h(Empty, { text: label('loading') })
         : report.status === 'error'
           ? h('p', { style: { ...L.notice, color: C.error }, role: 'alert' }, report.error)
-          : h('div', { style: L.mdColumn }, markdownNodes(report.markdown || '', 'report'))
+          : h('div', { style: L.mdColumn, 'data-mw-report': '' }, markdownNodes(report.markdown || '', 'report'))
       return h('section', { style: L.reportRoot, 'data-testid': 'makeworld-ledger-report' },
         h('header', { style: L.reportBar },
           h('p', { style: L.reportBarHint }, label('reportHint')),
@@ -1589,6 +1636,11 @@ window.__ModuleLoader__.load({
       '[data-makeworld-ledger] [data-mw-action]:hover:not(:disabled) {',
       '  color: var(--dsw-alias-label-primary, #1b1b1f); text-decoration: underline; }',
       '[data-makeworld-ledger] [data-mw-action]:disabled, [data-makeworld-ledger] [data-mw-tab]:disabled { opacity: .5; cursor: default; }',
+      /* The report body scales with the window: 13/1.7 below, 14/1.75 once there
+         is width to carry a longer measure. Blocks inherit from the column. */
+      '[data-makeworld-ledger] [data-mw-report] { font-size: 13px; line-height: 1.7; }',
+      '@media (min-width: 1280px) {',
+      '  [data-makeworld-ledger] [data-mw-report] { font-size: 14px; line-height: 1.75; } }',
       '@media (max-width: 560px) {',
       '  [data-makeworld-ledger] { padding-left: 12px !important; padding-right: 12px !important; } }',
       '[data-conversation-scroll]:has([data-makeworld-ledger]) [data-composer-card]::after { display: none; }',
@@ -1672,7 +1724,9 @@ window.__ModuleLoader__.load({
     exports.__test = {
       parseMarkdown, parseInline, markdownNodes, LEDGER_CSS,
       dictionaries: { zh, en },
-      LedgerPanel, CoverageCard, FrontierCard, ReviewCard, GapsCard, HealthCard, ReportCard, SyncBadge, Card, tag,
+      /* The colour tokens, so a test can assert the surface ladder by identity. */
+      tokens: C,
+      LedgerPanel, EnvironmentPanel, McpPanel, CoverageCard, FrontierCard, ReviewCard, GapsCard, HealthCard, ReportCard, SyncBadge, Card, tag,
       useLiveLedger,
     }
     return module.exports

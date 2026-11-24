@@ -334,8 +334,19 @@ test('coverage section: four equal number boxes, one family line, untouched chip
   assert.match(text, /1\s+有观测/)
   assert.match(text, /1\s+未触及/)
   assert.match(text, /4\s+实体/, 'the entity total is the fourth box')
-  assert.match(text, /目标 1 · 意图 2 · 事实 3 · 结论 1 · 证据 2 · 模板 0/,
-    'family counts are one grey line, not pills')
+  /* Family counts are their own row of label+value units, not a sentence. */
+  const familyRow = findAll(tree, 'div').find((node) => node.props.role === 'list')
+  assert.ok(familyRow, 'the family counts form a labelled list')
+  assert.equal(familyRow.props['aria-label'], '家族计数')
+  const familyItems = findAll(familyRow, 'div').filter((node) => node.props.role === 'listitem')
+  assert.equal(familyItems.length, 6, 'six families (the entity total is the fourth box)')
+  assert.deepEqual(familyItems.map((item) => findAll(item, 'span').map(textOf).join(' ')),
+    ['1 目标', '2 意图', '3 事实', '1 结论', '2 证据', '0 模板'],
+    'value first (13/600), label second (11px caption)')
+  const familyValue = findAll(familyItems[2], 'span')[0]
+  assert.equal(familyValue.props.style.fontSize, '13px')
+  assert.equal(familyValue.props.style.fontWeight, 600)
+  assert.equal(findAll(familyItems[2], 'span')[1].props.style.fontSize, '11px')
   assert.equal((text.match(/4\s+实体/g) || []).length, 1, 'the entity total is not repeated under the family line')
   assert.match(text, /redis/, 'the untouched entity value is shown, not just counted')
 })
@@ -608,10 +619,10 @@ test('the page keeps dsh-pentest\'s shape: identity card, sub-tabs, grouped sect
   assert.equal(findAll(grid, 'section').length, 4, 'coverage, frontier, review, gaps')
   const titles = findAll(grid, 'h3').map((node) => textOf(node).trim())
   assert.deepEqual(titles, ['覆盖', '前沿', '待处理', '缺口'])
-  for (const section of findAll(grid, 'section')) {
-    assert.equal(section.props.style.border, '1px solid var(--dsw-alias-border-l2, rgba(127,127,127,.28))',
-      'sections share one weight')
-  }
+  const weights = new Set(findAll(grid, 'section').map((section) => section.props.style.border))
+  assert.equal(weights.size, 1, 'sections share one weight')
+  assert.equal([...weights][0], '0.5px solid var(--dsw-alias-border-l2, rgba(127,127,127,.28))',
+    'the card weight matches the platform panel')
 
   /* The health strip sits above the grid and is the only tinted surface. */
   const strip = findAll(tree, 'div').find((node) => node.props['data-testid'] === 'makeworld-ledger-health')
@@ -719,5 +730,103 @@ test('without the ledger projection the page falls back to 4s polling', async ()
     assert.equal(timers[0].ms, 4000, 'no push means polling carries the sync')
   } finally {
     scope.restore()
+  }
+})
+
+test('the report column is fluid: an 860px cap, centred, type scales with the window', async () => {
+  const { module } = loadClient()
+  const markdown = '# 标题\n\n段落一。\n\n```\ncode\n```\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n'
+  const tree = await section(module, 'ReportCard', { report: { status: 'ready', markdown } })
+
+  const column = findAll(tree, 'div').find((node) => node.props['data-mw-report'] !== undefined)
+  assert.ok(column, 'the column is the responsive anchor')
+  assert.equal(column.props.style.maxWidth, 'min(100%, 860px)', 'never wider than 860px, never wider than the panel')
+  assert.equal(column.props.style.margin, '0 auto', 'centred')
+  assert.equal(column.props.style.padding, '0 28px', 'horizontal gutters')
+  assert.equal(column.props.style.fontSize, undefined, 'type size lives in CSS, or the breakpoint could never win')
+  assert.equal(column.props.style.lineHeight, undefined)
+
+  /* Blocks inherit the column's size so the media query can move all of them. */
+  const paragraph = findAll(column, 'p')[0]
+  assert.equal(paragraph.props.style.fontSize, 'inherit')
+  assert.equal(paragraph.props.style.lineHeight, 'inherit')
+  assert.equal(findAll(column, 'pre')[0].props.style.maxWidth, '100%', 'code follows the container')
+  assert.equal(findAll(column, 'table')[0].props.style.maxWidth, '100%', 'tables follow the container')
+
+  /* Wide windows get 14/1.75; the media query lives in the scoped stylesheet. */
+  assert.match(module.__test.LEDGER_CSS, /\[data-makeworld-ledger\] \[data-mw-report\] \{ font-size: 13px; line-height: 1\.7; \}/)
+  assert.match(module.__test.LEDGER_CSS, /@media \(min-width: 1280px\) \{\s*\[data-makeworld-ledger\] \[data-mw-report\] \{ font-size: 14px; line-height: 1\.75; \} \}/)
+  assert.equal(module.__test.LEDGER_CSS.includes('72ch'), false, 'the fixed ch measure is gone')
+})
+
+/* ------------------------------------------------------------ surfaces -- */
+
+test('ledger cards follow the platform panel ladder: nothing paints base inside a card', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime })
+  const C = module.__test.tokens
+  const scope = withFetch(SNAPSHOT)
+  let tree
+  try {
+    tree = await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+  } finally { scope.restore() }
+
+  /* `base` inside a `layer-1` card reads as a hole; it must not appear at all. */
+  const holes = []
+  const walk = (node, insideCard) => {
+    if (node === null || node === undefined || typeof node !== 'object') return
+    if (Array.isArray(node)) { for (const child of node) walk(child, insideCard); return }
+    const style = node.props.style
+    const card = insideCard || (node.type === 'section' && style !== undefined)
+    if (insideCard && style !== undefined && style.background === C.base) holes.push(textOf(node).slice(0, 40))
+    walk(node.props.children, card)
+  }
+  walk(tree, false)
+  assert.deepEqual(holes, [], 'no base fill inside a card')
+
+  /* Number boxes and entry cards are one step up from the section card. */
+  const boxes = findAll(tree, 'div').filter((node) => node.props.style !== undefined
+    && node.props.style.background === C.layer2 && String(node.props.style.border) === `1px solid ${C.borderColor}`)
+  assert.equal(boxes.length, 4, 'the four coverage number boxes sit on layer-2')
+  const rows = findAll(tree, 'li').filter((node) => node.props.style !== undefined)
+  const paintedEntries = rows.filter((node) => node.props.style.background === C.layer2)
+  assert.ok(paintedEntries.length >= 2, 'the frontier entries sit on layer-2')
+  assert.equal(rows.some((node) => node.props.style.background === C.base), false,
+    'no row inside a card is painted with base')
+  const blocks = findAll(tree, 'div').filter((node) => node.props.style !== undefined
+    && node.props.style.background === 'transparent' && String(node.props.style.border) === `1px solid ${C.borderColor}`)
+  assert.ok(blocks.length >= 2, 'inner blocks inside an entry are outline-only, not a fourth colour step')
+})
+
+test('report code blocks are the only recessed surface', async () => {
+  const { module } = loadClient()
+  const C = module.__test.tokens
+  const tree = await section(module, 'ReportCard', { report: { status: 'ready', markdown: '```\ncode\n```\n' } })
+  const pre = findAll(tree, 'pre')[0]
+  assert.equal(pre.props.style.background, C.base, 'a code block is a hole, by design')
+  assert.equal(String(pre.props.style.border).includes('1px solid'), true, 'and it is outlined')
+  const panel = findAll(tree, 'div').find((node) => node.props['data-mw-report'] !== undefined)
+  assert.equal(panel.props.style.background, undefined, 'the report column itself paints nothing')
+})
+
+test('the platform panel keeps its own surface logic, unchanged', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime })
+  const C = module.__test.tokens
+  const scope = withFetch({ servers: [], status: {} })
+  let tree
+  try {
+    tree = await settle(module.__test.McpPanel, {}, runtime)
+  } finally { scope.restore() }
+
+  const cards = findAll(tree, 'section')
+  assert.ok(cards.length >= 1, 'the panel renders its cards')
+  assert.equal(cards[0].props.style.background, C.layer, 'panel cards stay layer-1')
+  assert.equal(cards[0].props.style.border, C.border, 'panel cards keep their own hairline')
+  const fields = [...findAll(tree, 'input'), ...findAll(tree, 'textarea')].filter((node) => node.props.style !== undefined)
+  assert.ok(fields.length > 0, 'the form has inputs')
+  for (const field of fields) {
+    assert.equal(field.props.style.background, C.layer2, 'panel inputs are one step up, not a hole')
+    assert.equal(field.props.style.border, C.border)
   }
 })
