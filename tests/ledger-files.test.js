@@ -449,3 +449,23 @@ test('settle refuses retired evidence on every ref family', async (t) => {
     )
   }
 })
+
+test('panel() returns the same next shape as read(next)', async (t) => {
+  const { dir, ledger, root } = await sandbox()
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const empty = await ledger.panel(root)
+  assert.equal(empty.next.initialized, false, 'an untouched directory is not initialized')
+  assert.equal(empty.next.missing, true)
+  assert.equal(empty.next.ledger, root)
+
+  await seeded(ledger, root)
+  const snapshot = await ledger.panel(root)
+  const read = await ledger.read(root, 'next')
+  assert.equal(snapshot.next.initialized, true)
+  assert.equal(snapshot.next.ledger, root)
+  assert.equal(snapshot.next.missing, false)
+  assert.deepEqual(snapshot.next.frontier, read.frontier)
+  assert.deepEqual(snapshot.next.counts, read.counts)
+  assert.equal(snapshot.coverage.evidenced, 1)
+  assert.ok(Array.isArray(snapshot.review.items))
+})

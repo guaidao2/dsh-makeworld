@@ -614,6 +614,31 @@ export class Ledger {
     })
   }
 
+  /**
+   * Everything the ledger page needs, from one fold.
+   *
+   * The page used to call `read()` three times, which meant three full reloads
+   * of the same file per open. This keeps the same views and reads once.
+   */
+  async panel(root) {
+    const loaded = await this.load(root, { fresh: true })
+    const state = loaded.state
+    return {
+      // Same shape `read('next')` returns: the page branches on `initialized`
+      // and prints `ledger`, and nextView alone never produces either.
+      next: {
+        ledger: root,
+        initialized: state.task !== null,
+        missing: loaded.missing,
+        broken: loaded.broken,
+        brokenLines: loaded.brokenLines,
+        ...nextView(state, {}),
+      },
+      coverage: coverageView(state),
+      review: reviewView(state),
+    }
+  }
+
   /** Read one view. */
   async read(root, view = 'next', options = {}) {
     const loaded = await this.load(root, { fresh: true })

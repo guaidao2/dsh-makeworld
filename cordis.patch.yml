@@ -53,6 +53,11 @@
       config:
         promptSection: true
 
+    # Read-only HTTP surface for the ledger page: the Web client cannot read
+    # files, so it asks the host for one session's snapshot. No state, no writes.
+    - id: makeworld-ledger-page
+      name: 'dsh-makeworld/ledger-panel'
+
     # Optional Git Bash environment enhancement. Disabled by default. The
     # control-center switch registers a host-global `bash` tool and adds a
     # guard that refuses `pwsh` calls while it is active; a guard cannot remove

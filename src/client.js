@@ -4,11 +4,9 @@
  * Hand-written `window.__ModuleLoader__` factory — no bundler. Platform
  * modules (React, locale, slots) arrive through the injected `require`.
  *
- * Scope is the platform layer only: Git Bash environment settings plus the
- * cookie diagnostics, and the MCP server list/form, all served by the
- * `/makeworld/*` routes. The cognitive layer — the task ledger that the
- * `cairn_*` tools keep under the workspace `.cairn/` directory — has no
- * interface here; it is driven entirely from the conversation.
+ * Two surfaces share one panel: the task ledger (read-only, `/makeworld/ledger`)
+ * and the platform settings (Git Bash + MCP). The ledger view only reads; the
+ * `cairn_*` tools remain the only writers.
  */
 
 window.__ModuleLoader__.load({
@@ -23,17 +21,103 @@ window.__ModuleLoader__.load({
 
     const zh = {
       panel: 'makeworld',
-      title: 'makeworld 控制面板',
-      subtitle: '平台层设置：Git Bash 与环境诊断、MCP 服务器。认知层的任务账本由 cairn_* 工具维护，没有界面。',
+      title: 'makeworld 工作台',
+      subtitle: '平台设置：Git Bash 环境诊断与 MCP 服务器。账本在会话顶栏的「账本」页签里。',
+      ledger: '账本',
       environment: '环境',
       mcp: 'MCP',
+      loading: '正在读账本…',
+      noSession: '没有可读取的会话：打开一个会话后再回来。',
+      empty: '这个会话还没有开场。让 agent 调 cairn_open 写下主体、目的与验收，账本才有东西可看。',
+      emptyBroken: '账本读不出任何记录，先修好上面列出的行；或用 cairn_open({reset:true}) 归档重开。',
+      refresh: '刷新',
+      report: '看报告',
+      close: '关闭',
+      frontier: '前沿',
+      gaps: '缺口',
+      coverage: '覆盖',
+      review: '待处理',
+      none: '（无）',
+      assumed: '仍依赖的假设',
+      negative: '已排除',
+      untested: '未触及',
+      unsupported: '无证据结论',
+      blocked: '被阻塞的意图',
+      score: '分',
+      ready: '就绪',
+      notReady: '待前置',
+      evidenced: '有证据',
+      observed: '有观测',
+      untouched: '未触及',
+      'family.goals': '目标',
+      'family.intents': '意图',
+      'family.facts': '事实',
+      'family.claims': '结论',
+      'family.entities': '实体',
+      'family.evidence': '证据',
+      'family.templates': '模板',
+      'status.incomplete': '未完成',
+      'status.satisfied': '已满足',
+      'status.deferred': '已搁置',
+      'status.blocked': '被阻塞',
+      'status.assumption': '仍是假设',
+      'status.stale': '已失效',
+      'status.unsupported': '没有证据',
+      'status.untested': '未被观测',
+      'status.dangling': '引用悬空',
+      'status.wrong-kind': '引用类型错',
+      'status.malformed': '坏行',
+      inconsistent: '账本不一致',
     }
     const en = {
       panel: 'makeworld',
-      title: 'makeworld control panel',
-      subtitle: 'Platform settings: Git Bash and environment diagnostics, MCP servers. The cognitive-layer ledger is maintained by the cairn_* tools and has no UI.',
+      title: 'makeworld workbench',
+      subtitle: 'Platform settings: Git Bash diagnostics and MCP servers. The ledger lives in the Ledger tab of each conversation.',
+      ledger: 'Ledger',
       environment: 'Environment',
       mcp: 'MCP',
+      loading: 'Reading the ledger…',
+      noSession: 'No session to read: open a conversation and come back.',
+      empty: 'This session has no ledger yet. Ask the agent to call cairn_open with subject, objective and acceptance.',
+      emptyBroken: 'Nothing could be read from the ledger. Fix the lines listed above, or archive it with cairn_open({reset:true}).',
+      refresh: 'Refresh',
+      report: 'Report',
+      close: 'Close',
+      frontier: 'Frontier',
+      gaps: 'Gaps',
+      coverage: 'Coverage',
+      review: 'Open items',
+      none: '(none)',
+      assumed: 'Assumptions',
+      negative: 'Ruled out',
+      untested: 'Untouched',
+      unsupported: 'Unsupported claims',
+      blocked: 'Blocked intents',
+      score: 'score',
+      ready: 'ready',
+      notReady: 'waiting',
+      evidenced: 'evidenced',
+      observed: 'observed',
+      untouched: 'untouched',
+      'family.goals': 'goals',
+      'family.intents': 'intents',
+      'family.facts': 'facts',
+      'family.claims': 'claims',
+      'family.entities': 'entities',
+      'family.evidence': 'evidence',
+      'family.templates': 'templates',
+      'status.incomplete': 'incomplete',
+      'status.satisfied': 'satisfied',
+      'status.deferred': 'deferred',
+      'status.blocked': 'blocked',
+      'status.assumption': 'assumption',
+      'status.stale': 'stale',
+      'status.unsupported': 'unsupported',
+      'status.untested': 'untested',
+      'status.dangling': 'dangling',
+      'status.wrong-kind': 'wrong kind',
+      'status.malformed': 'malformed',
+      inconsistent: 'Ledger inconsistencies',
     }
 
     /* ---------------------------------------------------------------- colors */
@@ -411,9 +495,224 @@ window.__ModuleLoader__.load({
             message ? h('span', { style: { ...S.faint, fontSize: '11px' } }, message) : null)), confirm.dialog)
     }
 
+    /* --------------------------------------------------------------- ledger */
+
+    /** Read the host's read-only ledger snapshot for one session. */
+    function useLedger(sessionId, nonce) {
+      const [state, setState] = React.useState({ status: 'idle' })
+      React.useEffect(() => {
+        if (sessionId === undefined || sessionId === null || sessionId === '') {
+          setState({ status: 'no-session' })
+          return undefined
+        }
+        let live = true
+        setState({ status: 'loading' })
+        fetch('/makeworld/ledger?session=' + encodeURIComponent(String(sessionId)), { cache: 'no-store', credentials: 'same-origin' })
+          .then(async (response) => {
+            const value = await response.json()
+            if (!response.ok) throw new Error(value.error || ('HTTP ' + response.status))
+            if (live) setState({ status: 'ready', data: value })
+          })
+          .catch((error) => {
+            if (live) setState({ status: 'error', error: error instanceof Error ? error.message : String(error) })
+          })
+        return () => { live = false }
+      }, [sessionId, nonce])
+      return state
+    }
+
+    function Section({ title, hint, children }) {
+      return h('section', { style: S.card },
+        h('h2', { style: S.cardTitle }, h('span', null, title), hint ? h('span', { style: { ...S.faint, fontSize: '11px', fontWeight: 400 } }, hint) : null),
+        children)
+    }
+
+    function Empty({ text }) {
+      return h('p', { style: { margin: 0, color: C.faint, fontSize: '12px' } }, text)
+    }
+
+    function List({ items, render, empty }) {
+      if (items.length === 0) return Empty({ text: empty })
+      return h('ul', { style: { margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: '4px' } },
+        items.map((item, index) => h('li', {
+          key: String(index),
+          style: {
+            display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'baseline',
+            fontSize: '12px', lineHeight: 1.5, minWidth: 0, overflowWrap: 'anywhere',
+          },
+        }, ...render(item))))
+    }
+
+    /* ------------------------------- ledger view ------------------------- */
+
+    const FAMILY_LABEL = {
+      goals: ['目标', 'goals'], intents: ['意图', 'intents'], facts: ['事实', 'facts'],
+      claims: ['结论', 'claims'], entities: ['实体', 'entities'], evidence: ['证据', 'evidence'],
+      templates: ['模板', 'templates'],
+    }
+
+    /** Structural problems use their own kind names; the dictionary is shared. */
+    const HEALTH_STATUS = {
+      danglingRef: 'dangling',
+      wrongRefKind: 'wrong-kind',
+      unknownOp: 'malformed',
+      unknownRecordKind: 'malformed',
+      unknownRef: 'malformed',
+      duplicateRecordId: 'malformed',
+      missingRecordId: 'malformed',
+      missingEdgeEnd: 'dangling',
+    }
+
+    const REVIEW_LABEL = {
+      incomplete: ['未完成', 'incomplete'], satisfied: ['已满足', 'satisfied'], deferred: ['已搁置', 'deferred'],
+      blocked: ['被阻塞', 'blocked'], assumption: ['仍是假设', 'assumption'], stale: ['已失效', 'stale'],
+      unsupported: ['没有证据', 'unsupported'], untested: ['未被观测', 'untested'], dangling: ['引用悬空', 'dangling'],
+      'wrong-kind': ['引用类型错', 'wrong kind'], malformed: ['坏行', 'malformed'],
+    }
+
+    /** Read-only ledger view: objective, coverage, frontier, open items, gaps. */
+    function LedgerPanel({ sessionId, t }) {
+      const label = (key, fallback) => (t ? t(key) : fallback)
+      const [nonce, setNonce] = React.useState(0)
+      const [report, setReport] = React.useState(null)
+      const state = useLedger(sessionId, nonce)
+
+      const refresh = () => {
+        setReport(null)
+        setNonce(n => n + 1)
+      }
+
+      const openReport = () => {
+        if (sessionId === undefined) return
+        setReport({ status: 'loading' })
+        fetch('/makeworld/ledger?session=' + encodeURIComponent(String(sessionId)) + '&view=report', { cache: 'no-store', credentials: 'same-origin' })
+          .then(async (response) => {
+            const value = await response.json()
+            if (!response.ok) throw new Error(value.error || ('HTTP ' + response.status))
+            setReport({ status: 'ready', markdown: value.markdown || '' })
+          })
+          .catch((error) => setReport({ status: 'error', error: error instanceof Error ? error.message : String(error) }))
+      }
+
+      const data = state.status === 'ready' ? state.data : undefined
+      const task = data && data.task ? data.task : undefined
+
+      const header = h('div', { style: { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '10px' } },
+        h('h2', { style: { margin: 0, fontSize: '16px', minWidth: 0, overflowWrap: 'anywhere' } },
+          (task && task.objective) || label('ledger', '账本')),
+        task && task.subject ? h('span', { style: S.faint }, task.subject) : null,
+        h('span', { style: { flex: 1 } }),
+        h('button', { type: 'button', style: S.button, onClick: refresh }, label('refresh', '刷新')),
+        h('button', { type: 'button', style: S.button, onClick: openReport, disabled: sessionId === undefined }, label('report', '看报告')))
+
+      const reportBlock = report === null ? null : h(Section, { title: label('report', '看报告') },
+        report.status === 'loading' ? Empty({ text: label('loading', '正在读账本…') })
+          : report.status === 'error' ? Empty({ text: report.error })
+            : h('pre', { style: { margin: 0, maxHeight: '420px', overflow: 'auto', fontSize: '11px', lineHeight: 1.5, whiteSpace: 'pre-wrap' } }, report.markdown),
+        h('button', { type: 'button', style: { ...S.button, marginTop: '8px' }, onClick: () => setReport(null) }, label('close', '关闭')))
+
+      const health = data === undefined ? [] : [
+        ...(data.broken ? [{
+          id: String(data.broken),
+          // "not counted" only means something once something was counted.
+          text: `有 ${data.broken} 行日志无法解析（第 ${(data.brokenLines || []).join(', ')} 行）`
+            + (data.initialized ? '，这些记录没有计入总数' : ''),
+          color: C.error,
+          status: 'malformed',
+        }] : []),
+        ...(data.ledgerProblems || []).map(problem => ({
+          id: problem.id ?? String(problem.seq ?? ''),
+          text: [
+            problem.owner ? problem.owner + ' 的 ' : '',
+            problem.field ?? '',
+            problem.value ? ' → ' + problem.value : '',
+            problem.expected ? `（应为 ${problem.expected}）` : '',
+          ].join(''),
+          status: HEALTH_STATUS[problem.kind] || 'malformed',
+          color: C.warn,
+        })),
+      ]
+      const healthCount = (data && data.ledgerProblemCount ? data.ledgerProblemCount : 0) + ((data && data.broken) || 0)
+      const healthBlock = health.length === 0 ? null : h(Section, { title: label('inconsistent', '账本不一致'), hint: String(healthCount || health.length) },
+        h(List, {
+          items: health,
+          empty: label('none', '（无）'),
+          render: item => [
+            badge(item.status ? label(`status.${item.status}`, item.status) : label('status.malformed', '坏行'), item.color),
+            h('span', null, item.text),
+          ],
+        }))
+
+      let body
+      if (state.status === 'no-session') body = Empty({ text: label('noSession', '没有可读取的会话。') })
+      else if (state.status === 'loading' || state.status === 'idle') body = Empty({ text: label('loading', '正在读账本…') })
+      else if (state.status === 'error') body = Empty({ text: state.error })
+      else if (!data.initialized) {
+        const onlyBroken = (data.broken || 0) > 0
+        body = h('div', { style: { display: 'grid', gap: '10px' } },
+          healthBlock,
+          Empty({ text: onlyBroken ? label('emptyBroken', '账本读不出任何记录，先修好上面列出的行；或用 cairn_open({reset:true}) 归档重开。') : label('empty', '这个会话还没有开场。') }),
+          h('code', { style: { ...S.faint, fontSize: '11px', wordBreak: 'break-all' } }, data.ledger || ''))
+      } else {
+        const coverage = data.coverage || { total: 0, evidenced: 0, observed: 0, untouched: 0, entities: [] }
+        const reviewItems = (data.review || []).filter(item => item.kind !== 'reference' && item.kind !== 'ledger')
+        const total = Math.max(1, coverage.total)
+        const gaps = data.gaps || {}
+        body = h('div', { style: { display: 'grid', gap: '12px' } },
+          healthBlock,
+          h(Section, { title: label('coverage', '覆盖'), hint: `${coverage.evidenced} / ${coverage.total}` },
+            h('div', { style: { display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', background: C.layer2 } },
+              h('div', { style: { width: ((coverage.evidenced / total) * 100) + '%', background: C.success } }),
+              h('div', { style: { width: ((coverage.observed / total) * 100) + '%', background: C.warn } }),
+              h('div', { style: { flex: 1, background: C.layer2, borderLeft: `1px dashed ${C.faint}` } })),
+            h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px', fontSize: '11px' } },
+              h('span', { style: S.faint }, `${label('evidenced', '有证据')} ${coverage.evidenced}`),
+              h('span', { style: S.faint }, `${label('observed', '有观测')} ${coverage.observed}`),
+              h('span', { style: S.faint }, `${label('untouched', '未触及')} ${coverage.untouched}`),
+              h('span', { style: { flex: 1 } }),
+              Object.keys(FAMILY_LABEL).map(key => badge(`${label(`family.${key}`, FAMILY_LABEL[key][0])} ${(data.counts || {})[key] || 0}`, C.muted)))),
+          h(Section, { title: label('frontier', '前沿') },
+            h(List, {
+              items: data.frontier || [],
+              empty: label('none', '（无）'),
+              render: (item) => [
+                badge(`${item.score} ${label('score', '分')}`, item.ready ? C.success : C.warn),
+                h('span', { style: { fontWeight: 500 } }, item.title),
+                item.ready ? null : h('span', { style: S.faint }, `${label('notReady', '待前置')} ${(item.missingDeps || []).join(', ')}`),
+                item.expectedObservation ? h('span', { style: S.faint }, `· ${item.expectedObservation}`) : null,
+              ].filter(Boolean),
+            })),
+          h(Section, { title: label('review', '待处理'), hint: String(reviewItems.length) },
+            h(List, {
+              items: reviewItems.slice(0, 12),
+              empty: label('none', '（无）'),
+              render: (item) => {
+                const fallback = REVIEW_LABEL[item.status] || [item.status, item.status]
+                return [badge(label(`status.${item.status}`, fallback[0]), item.status === 'blocked' || item.status === 'malformed' ? C.error : C.muted), h('span', null, item.text)]
+              },
+            })),
+          h(Section, { title: label('gaps', '缺口') },
+            h('div', { style: { display: 'grid', gap: '8px', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' } },
+              h('div', null, h('div', { style: S.kvLabel }, label('assumed', '仍依赖的假设')),
+                h(List, { items: gaps.assumed || [], empty: label('none', '（无）'), render: (item) => [badge(item.id, C.warn), h('span', null, item.text)] })),
+              h('div', null, h('div', { style: S.kvLabel }, label('negative', '已排除')),
+                h(List, { items: gaps.negative || [], empty: label('none', '（无）'), render: (item) => [badge(item.id, C.error), h('span', null, item.text)] })),
+              h('div', null, h('div', { style: S.kvLabel }, label('untested', '未触及')),
+                h(List, { items: gaps.untestedEntities || [], empty: label('none', '（无）'), render: (item) => [badge(item.id, C.faint), h('span', null, `${item.type || ''} ${item.value}`)] })),
+              h('div', null, h('div', { style: S.kvLabel }, label('unsupported', '未定论结论')),
+                h(List, { items: gaps.unsupportedClaims || [], empty: label('none', '（无）'), render: (item) => [badge(item.id, C.info), h('span', null, item.title)] })))),
+        )
+      }
+
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }, 'data-testid': 'makeworld-ledger' },
+        header,
+        reportBlock,
+        body)
+    }
+
     /**
-     * Platform control panel: environment and MCP, switched with a two-button tab bar.
-     * Nothing here reads session state — the panel is session-agnostic.
+     * Platform settings panel (sidebar): Git Bash environment and MCP.
+     * The ledger lives in the conversation tab bar instead, per session.
      */
     function MakeworldPanel(props) {
       const [tab, setTab] = React.useState('environment')
@@ -423,8 +722,8 @@ window.__ModuleLoader__.load({
       ]
       return h('div', { style: { ...S.root, maxWidth: '1120px', margin: '0 auto' }, 'data-testid': 'makeworld-panel' },
         h('header', { style: { display: 'flex', flexDirection: 'column', gap: '4px', flex: 'none' } },
-          h('h1', { style: { margin: 0, fontSize: '18px' } }, props.t ? props.t('title') : 'makeworld 控制面板'),
-          h('p', { style: { margin: 0, color: C.muted, fontSize: '12px' } }, props.t ? props.t('subtitle') : '平台层设置：Git Bash 与环境诊断、MCP 服务器。认知层的任务账本由 cairn_* 工具维护，没有界面。')),
+          h('h1', { style: { margin: 0, fontSize: '18px' } }, props.t ? props.t('title') : 'makeworld 工作台'),
+          h('p', { style: { margin: 0, color: C.muted, fontSize: '12px' } }, props.t ? props.t('subtitle') : '平台设置：Git Bash 环境诊断与 MCP 服务器。账本在会话顶栏的「账本」页签里。')),
         h('nav', { style: S.tabBar, 'data-testid': 'makeworld-tabbar' },
           tabDefs.map(item => h('button', {
             key: item.id,
@@ -453,6 +752,13 @@ window.__ModuleLoader__.load({
         key: 'makeworld-panel',
         locale: NS,
       }, MakeworldPanel))
+      ctx.slots.inject('conversation.view', () => ctx.slots.register({
+        name: 'conversation.view',
+        id: 'makeworld-ledger',
+        order: 40,
+        locale: NS,
+        label: () => t('ledger'),
+      }, (props) => h(LedgerPanel, { sessionId: props.sessionId, t: props.t })))
       ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
         name: 'sidebar.panellist',
         id: 'makeworld-panel',

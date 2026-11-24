@@ -8,6 +8,8 @@ DeepSeek Harness 的任务账本插件。它给会话一份只追加的账本：
 
 账本叫 cairn（石堆路标）：每走一步放一块石头，后来的人——和后来的你——能顺着走。工具前缀 `cairn_`、目录 `.cairn/`，跟项目名 makeworld 各叫各的。
 
+会话顶栏（「对话」「轨迹」旁边）多一个只读的「账本」页签：前沿、缺口、三档覆盖、待处理项，外加一键看报告。侧栏那条 makeworld 是平台设置（环境 / MCP）。写仍然只在会话里通过工具发生。
+
 不是模式，是能力层。账本行挂在 profile root，所有 preset 的会话都继承；没有「makeworld 模式」要进。
 
 ## 它解决什么
@@ -106,11 +108,12 @@ dsh plugin --profile web add <path-to-dsh-makeworld>
 | `makeworld-gitbash` | 可选 Git Bash，开启后多一个 `bash`，并拒绝对 `pwsh` 的调用（默认关）。`pwsh` 的定义仍来自 base bundle，工具列表里还看得见；要彻底去掉就在 preset 里 disable `tool-pwsh` |
 | `makeworld-environment` | 只读诊断：Git Bash 状态、`dsh-auth-*` cookie 数量与请求头大小；面板走 `/makeworld/environment` |
 | `makeworld-mcp` | MCP 桥，复用官方 `@deepseek-ai/dsh-mcp-client`；面板走 `/makeworld/mcp` |
-| `makeworld-ui` | 网页端控制面板：环境增强（Git Bash / cookie）与 MCP 配置两块。账本本身没有界面，页签已随旧模式一起删掉 |
+| `makeworld-ui` | 网页端：会话顶栏的只读账本页签 + 侧栏的平台面板（环境增强 / MCP） |
+| `makeworld-ledger-page` | 账本页的数据接口 `/makeworld/ledger`：按会话读出前沿、缺口、覆盖与待处理项；只读，不写账本 |
 
 平台层的数据域在 0.1.0 从 `lingeye` 改名为 `makeworld`，没有做迁移：旧的 Git Bash 开关与 MCP 服务器列表需要在新面板里重填一次。账本不受影响（它不在存储域里）。
 
-关掉任何一行，账本照常工作。反过来也一样，只有一处例外：`makeworld-gitbash` 依赖 `makeworld-environment` 的设置，关掉 environment 那行 bash 会一起消失（启动诊断里会看到它 pending，等 `makeworldEnvironment`）。
+关掉任何一行，账本照常工作。反过来也一样，只有一处例外：`makeworld-ledger-page` 被关掉时，顶栏的「账本」页签会一直转圈（它的数据接口没挂上），会话里的 `cairn_*` 工具不受影响；`makeworld-gitbash` 依赖 `makeworld-environment` 的设置，关掉 environment 那行 bash 会一起消失（启动诊断里会看到它 pending，等 `makeworldEnvironment`）。
 
 ## 开发
 
@@ -120,7 +123,7 @@ dsh plugin --profile web add <path-to-dsh-makeworld>
 npm test
 ```
 
-账本侧 58 个测试：折叠、三档覆盖、就绪排序、报告缺口、原子批、严格 settle、证据退役级联、反事实、关系模板、悬空与错族引用、id 防伪、证据寻址、旧格式兼容，以及文件层 open → write（含 alias）→ settle → export 全流程；平台层 19 个（ACL 补丁 / Git Bash / 环境 / MCP）。
+账本侧 59 个测试：折叠、三档覆盖、就绪排序、报告缺口、原子批、严格 settle、证据退役级联、反事实、关系模板、悬空与错族引用、id 防伪、证据寻址、旧格式兼容，以及文件层 open → write（含 alias）→ settle → export 全流程；页面与路由 11 个（合并、截断、健康字段、HEAD、未知视图、非 owner、读失败、会话校验）；平台层 19 个（ACL 补丁 / Git Bash / 环境 / MCP）。
 
 ## 许可
 

@@ -61,6 +61,10 @@ export default class MakeworldLedger extends Service {
     return this.ledger.read(this.root(session), view, options)
   }
 
+  panel(session) {
+    return this.ledger.panel(this.root(session))
+  }
+
   exportBundle(session) {
     return this.ledger.exportBundle(this.root(session))
   }
