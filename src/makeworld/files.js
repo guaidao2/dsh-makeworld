@@ -34,6 +34,13 @@ import {
 export const MAX_RECORDS_PER_WRITE = 24
 const EXCERPT_CHARS = 280
 
+/**
+ * Frontier rows the page asks for. `nextView` defaults to 6 (a tool answer);
+ * a page that renders a list needs more before it can claim "the next steps",
+ * and the merged payload caps every list at MAX_PANEL_ROWS (50) anyway.
+ */
+const PANEL_FRONTIER_LIMIT = 20
+
 /** "a"/"an" for error messages. */
 function article(word) {
   return /^[aeiou]/i.test(word) ? 'an' : 'a'
@@ -630,9 +637,10 @@ export class Ledger {
         ledger: root,
         initialized: state.task !== null,
         missing: loaded.missing,
+        lastAt: state.lastAt,
         broken: loaded.broken,
         brokenLines: loaded.brokenLines,
-        ...nextView(state, {}),
+        ...nextView(state, { limit: PANEL_FRONTIER_LIMIT }),
       },
       coverage: coverageView(state),
       review: reviewView(state),

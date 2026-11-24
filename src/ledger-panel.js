@@ -48,6 +48,7 @@ export function mergePanelViews(next, coverage, review) {
     hint: next.hint,
     ledger: next.ledger,
     task: next.task ?? null,
+    lastAt: next.lastAt ?? '',
     counts: next.counts ?? {},
     frontier: head(next.frontier),
     gaps: {

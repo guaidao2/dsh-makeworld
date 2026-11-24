@@ -1,6 +1,6 @@
 {
   "name": "dsh-makeworld",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "dsh-makeworld：DeepSeek Harness 的任务账本插件。use the less, make more —— 记录信念、实验与证据，而不是待办清单。",
   "author": "guaidao2",
   "type": "module",

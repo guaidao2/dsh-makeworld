@@ -469,3 +469,34 @@ test('panel() returns the same next shape as read(next)', async (t) => {
   assert.equal(snapshot.coverage.evidenced, 1)
   assert.ok(Array.isArray(snapshot.review.items))
 })
+
+test('panel() reports the last write time so the page can show freshness', async (t) => {
+  const { dir, ledger, root } = await sandbox()
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const empty = await ledger.panel(root)
+  assert.equal(empty.next.lastAt, '')
+  await seeded(ledger, root)
+  const snapshot = await ledger.panel(root)
+  assert.match(snapshot.next.lastAt, /^\d{4}-\d{2}-\d{2}T/)
+})
+
+test('panel() shows more frontier rows than a tool answer, and caps at the page limit', async (t) => {
+  const { dir, ledger, root } = await sandbox()
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  await ledger.open(root, 'test', { subject: 'repo', objective: 'o', acceptance: 'a' })
+  const ten = Array.from({ length: 10 }, (_, index) => ({
+    kind: 'intent', alias: `i${index}`, title: `实验 ${index}`, state: 'open',
+  }))
+  await ledger.write(root, 'test', ten)
+  const wide = await ledger.panel(root)
+  assert.equal(wide.next.frontier.length, 10, 'the page is not limited to the six rows nextView defaults to')
+  const narrow = await ledger.read(root, 'next')
+  assert.equal(narrow.frontier.length, 6, 'the tool answer keeps its own six-row default')
+
+  const more = Array.from({ length: 14 }, (_, index) => ({
+    kind: 'intent', alias: `j${index}`, title: `更多 ${index}`, state: 'open',
+  }))
+  await ledger.write(root, 'test', more)
+  const capped = await ledger.panel(root)
+  assert.equal(capped.next.frontier.length, 20, 'the panel stops at twenty rows')
+})
