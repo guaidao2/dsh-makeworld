@@ -124,7 +124,7 @@ dsh plugin --profile web add <path-to-dsh-makeworld>
 npm test
 ```
 
-账本侧 66 个测试：折叠、三档覆盖、就绪排序、报告缺口、原子批、严格 settle、证据退役级联、反事实、关系模板、悬空与错族引用、id 防伪、证据寻址、旧格式兼容，以及文件层 open → write（含 alias）→ settle → export 全流程；页面与路由 11 个（合并、截断、健康字段、HEAD、未知视图、非 owner、读失败、会话校验）；前端 26 个（注册、版式、markdown、四态、字典对齐、推送与两级兜底）；平台层 19 个（ACL 补丁 / Git Bash / 环境 / MCP）。
+账本侧 67 个测试：折叠、三档覆盖、就绪排序、报告缺口、原子批、严格 settle、证据退役级联、反事实、关系模板、悬空与错族引用、id 防伪、证据寻址、旧格式兼容，以及文件层 open → write（含 alias）→ settle → export 全流程；页面与路由 15 个（合并、截断、字节预算、健康字段、HEAD、未知视图、非 owner、读失败、会话校验）；前端 39 个（注册、版式、明细表与展开/筛选、markdown、四态、字典对齐、推送与两级兜底）；平台层 19 个（ACL 补丁 / Git Bash / 环境 / MCP）。
 
 ## 许可
 

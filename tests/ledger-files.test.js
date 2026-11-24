@@ -500,3 +500,18 @@ test('panel() shows more frontier rows than a tool answer, and caps at the page 
   const capped = await ledger.panel(root)
   assert.equal(capped.next.frontier.length, 20, 'the panel stops at twenty rows')
 })
+
+test('panel() carries per-family detail lists with totals', async (t) => {
+  const { dir, ledger, root } = await sandbox()
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  await seeded(ledger, root)
+  const snapshot = await ledger.panel(root)
+  const records = snapshot.next.records
+  assert.equal(records.goals.length, 1)
+  assert.equal(records.intents.length, 1)
+  assert.equal(records.facts.length, 1)
+  assert.equal(records.entities.length, 1)
+  assert.equal(records.totals.facts, 1)
+  assert.equal(records.totals.claims, 0)
+  assert.ok(Array.isArray(records.evidence))
+})

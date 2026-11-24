@@ -22,6 +22,14 @@ export const inject = ['webServer', 'sessions', 'makeworldLedger']
 /** Lists are capped so one page open cannot ship a megabyte of JSON. */
 export const MAX_PANEL_ROWS = 50
 
+/** Detail rows get a larger budget: a family tab is meant to be browsable. */
+import { MAX_PANEL_RECORDS } from './makeworld/files.js'
+
+export { MAX_PANEL_RECORDS }
+
+/** Byte budget per family: rows are capped by count *and* by payload size. */
+export const MAX_PANEL_BYTES_PER_FAMILY = 120 * 1024
+
 function writeJson(res, status, payload) {
   if (res.headersSent === true) return
   res.writeHead(status, {
@@ -35,6 +43,25 @@ function writeJson(res, status, payload) {
 function head(list, limit = MAX_PANEL_ROWS) {
   const items = Array.isArray(list) ? list : []
   return items.length > limit ? items.slice(0, limit) : items
+}
+
+/**
+ * The newest rows that fit a byte budget.
+ *
+ * The ledger appends, so the tail is what a reader wants; a count cap alone
+ * lets one 40 KB detail field blow the response up 200 times.
+ */
+function tailWithinBudget(list, limit, budget = MAX_PANEL_BYTES_PER_FAMILY) {
+  const items = Array.isArray(list) ? list.slice(-limit) : []
+  let used = 0
+  let index = items.length
+  while (index > 0) {
+    const size = Buffer.byteLength(JSON.stringify(items[index - 1]), 'utf8')
+    if (used + size > budget && index < items.length) break
+    used += size
+    index -= 1
+  }
+  return items.slice(index)
 }
 
 /**
@@ -75,6 +102,16 @@ export function mergePanelViews(next, coverage, review) {
       entities: head(coverage.entities),
     },
     review: head(review.items),
+    records: next.records === undefined ? undefined : {
+      goals: tailWithinBudget(next.records.goals, MAX_PANEL_RECORDS),
+      intents: tailWithinBudget(next.records.intents, MAX_PANEL_RECORDS),
+      facts: tailWithinBudget(next.records.facts, MAX_PANEL_RECORDS),
+      claims: tailWithinBudget(next.records.claims, MAX_PANEL_RECORDS),
+      entities: tailWithinBudget(next.records.entities, MAX_PANEL_RECORDS),
+      evidence: tailWithinBudget(next.records.evidence, MAX_PANEL_RECORDS),
+      templates: tailWithinBudget(next.records.templates, MAX_PANEL_RECORDS),
+      totals: next.records.totals ?? {},
+    },
     broken: next.broken ?? 0,
     brokenLines: head(next.brokenLines),
   }

@@ -60,6 +60,66 @@ window.__ModuleLoader__.load({
       'family.evidence': '证据',
       'family.templates': '模板',
       familyCounts: '家族计数',
+      'tbl.state': '状态',
+      'tbl.title': '标题',
+      'tbl.expected': '预期观测',
+      'tbl.goal': '目标',
+      'tbl.metrics': '不确定度 / 成本',
+      'tbl.id': 'id',
+      'tbl.basis': '依据',
+      'tbl.type': '类型',
+      'tbl.content': '内容',
+      'tbl.confidence': '置信度',
+      'tbl.intent': '意图',
+      'tbl.evidenceCount': '证据',
+      'tbl.status': '状态',
+      'tbl.weight': '权重',
+      'tbl.value': '值',
+      'tbl.parent': '父级',
+      'tbl.label': '标签',
+      'tbl.excerpt': '摘录',
+      'tbl.channel': '通道',
+      'tbl.sha': 'sha',
+      'tbl.text': '目标',
+      'tbl.acceptance': '验收',
+      'tbl.name': '名称',
+      'tbl.relation': '前置 → 动作 → 观测 → 后置',
+      'tbl.pre': '前置条件',
+      'tbl.action': '动作',
+      'tbl.observation': '预期观测',
+      'tbl.post': '后置条件',
+      'basis.observed': '观测',
+      'basis.inferred': '推导',
+      'basis.assumed': '假设',
+      'basis.negative': '否定',
+      'claimStatus.pending': '待定',
+      'claimStatus.confirmed': '已确认',
+      'claimStatus.resolved': '已解决',
+      'claimStatus.rejected': '已推翻',
+      'claimStatus.accepted': '已接受',
+      'claimStatus.stale': '已失效',
+      'goalStatus.open': '未完成',
+      'goalStatus.met': '已达成',
+      'goalStatus.abandoned': '已放弃',
+      search: '搜索 id 或文本',
+      allValues: '全部',
+      noMatch: '没有匹配的记录',
+      emptyFamily: '这一族还没有记录',
+      familyUnloaded: '这一族有记录，但明细没有随这次加载送达；刷新看看',
+      ofTotal: '共',
+      firstN: '只列前',
+      writeWith: '写入：',
+      expand: '展开',
+      collapse: '收起',
+      details: '明细',
+      derivedFrom: '派生自',
+      layers: '分层解释',
+      reproduceSteps: '复现步骤',
+      evidenceVersion: '证据版本',
+      createdAt: '写入时间',
+      actor: '写入者',
+      onlyRecentPrefix: '仅显示最近',
+      onlyRecentSuffix: '条',
       'status.incomplete': '未完成',
       'status.satisfied': '已满足',
       'status.deferred': '已搁置',
@@ -170,6 +230,66 @@ window.__ModuleLoader__.load({
       'family.evidence': 'evidence',
       'family.templates': 'templates',
       familyCounts: 'Family counts',
+      'tbl.state': 'State',
+      'tbl.title': 'Title',
+      'tbl.expected': 'Expected',
+      'tbl.goal': 'Goal',
+      'tbl.metrics': 'uncert. / cost',
+      'tbl.id': 'id',
+      'tbl.basis': 'Basis',
+      'tbl.type': 'Type',
+      'tbl.content': 'Content',
+      'tbl.confidence': 'Conf.',
+      'tbl.intent': 'Intent',
+      'tbl.evidenceCount': 'Evidence',
+      'tbl.status': 'Status',
+      'tbl.weight': 'Weight',
+      'tbl.value': 'Value',
+      'tbl.parent': 'Parent',
+      'tbl.label': 'Label',
+      'tbl.excerpt': 'Excerpt',
+      'tbl.channel': 'Channel',
+      'tbl.sha': 'sha',
+      'tbl.text': 'Goal',
+      'tbl.acceptance': 'Acceptance',
+      'tbl.name': 'Name',
+      'tbl.relation': 'pre → action → observation → post',
+      'tbl.pre': 'Precondition',
+      'tbl.action': 'Action',
+      'tbl.observation': 'Observation',
+      'tbl.post': 'Postcondition',
+      'basis.observed': 'observed',
+      'basis.inferred': 'inferred',
+      'basis.assumed': 'assumed',
+      'basis.negative': 'negative',
+      'claimStatus.pending': 'pending',
+      'claimStatus.confirmed': 'confirmed',
+      'claimStatus.resolved': 'resolved',
+      'claimStatus.rejected': 'rejected',
+      'claimStatus.accepted': 'accepted',
+      'claimStatus.stale': 'stale',
+      'goalStatus.open': 'open',
+      'goalStatus.met': 'met',
+      'goalStatus.abandoned': 'abandoned',
+      search: 'Search id or text',
+      allValues: 'All',
+      noMatch: 'No matching records',
+      emptyFamily: 'No records in this family yet',
+      familyUnloaded: 'This family has records, but their rows did not arrive with this load; try refreshing',
+      ofTotal: 'of',
+      firstN: 'showing',
+      writeWith: 'Write one with',
+      expand: 'Expand',
+      collapse: 'Collapse',
+      details: 'Details',
+      derivedFrom: 'Derived from',
+      layers: 'Layers',
+      reproduceSteps: 'Reproduce',
+      evidenceVersion: 'Evidence version',
+      createdAt: 'Written at',
+      actor: 'Actor',
+      onlyRecentPrefix: 'showing the latest',
+      onlyRecentSuffix: 'records',
       'status.incomplete': 'incomplete',
       'status.satisfied': 'satisfied',
       'status.deferred': 'deferred',
@@ -712,7 +832,7 @@ window.__ModuleLoader__.load({
          the shared scrollport, so the scroller reserves that room. */
       content: {
         display: 'flex', flexDirection: 'column', gap: '12px', flex: '1 1 auto', minHeight: 0,
-        overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px',
+        overflowY: 'auto', overflowX: 'auto', paddingRight: '2px',
         paddingBottom: 'calc(var(--dsh-composer-height, 0px) + 20px)',
       },
       /* The 报告 tab scrolls inside its own Markdown panel. */
@@ -766,6 +886,45 @@ window.__ModuleLoader__.load({
       /* Outline chip: a fill would add a step the three-step ladder does not have. */
       chip: { fontSize: '12px', lineHeight: '18px', color: C.muted, background: 'transparent', border: LINE_1, borderRadius: '4px', padding: '0 6px', overflowWrap: 'anywhere', minWidth: 0 },
 
+      /* Record tables: compact rows, sticky header, two-line clamped cells.
+         The header paints layer-1 so rows scrolling underneath stay hidden. */
+      filterBar: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', minWidth: 0 },
+      input: {
+        boxSizing: 'border-box', width: '220px', maxWidth: '100%', padding: '4px 8px',
+        borderRadius: '6px', border: LINE_1, background: C.base, color: C.text,
+        font: 'inherit', fontSize: '12px', lineHeight: '18px',
+      },
+      select: {
+        boxSizing: 'border-box', maxWidth: '100%', padding: '4px 6px', borderRadius: '6px',
+        border: LINE_1, background: C.base, color: C.text, font: 'inherit', fontSize: '12px', lineHeight: '18px',
+      },
+      dataTable: {
+        width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse',
+        fontSize: '12px', lineHeight: '18px', minWidth: '860px',
+      },
+      dataTh: {
+        position: 'sticky', top: 0, zIndex: 1, textAlign: 'left', verticalAlign: 'bottom',
+        padding: '4px 8px', background: C.layer, borderBottom: LINE_2,
+        color: C.caption, fontWeight: 500, whiteSpace: 'nowrap',
+      },
+      dataTd: { padding: '6px 8px', borderBottom: LINE_1, verticalAlign: 'top', color: C.muted, minWidth: 0 },
+      rowButton: {
+        appearance: 'none', border: 0, background: 'none', padding: '0 2px',
+        font: 'inherit', fontSize: '11px', lineHeight: '18px', color: C.caption, cursor: 'pointer',
+      },
+      detailCell: { padding: '10px 12px', background: C.layer2, borderBottom: LINE_2 },
+      detailGrid: { display: 'grid', gap: '6px 18px', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', margin: 0 },
+      detailItem: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+      detailLabel: { fontSize: '11px', lineHeight: '16px', color: C.caption },
+      detailValue: { margin: 0, fontSize: '12px', lineHeight: '18px', color: C.text, minWidth: 0, overflowWrap: 'anywhere' },
+      emptyBlock: {
+        display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center',
+        padding: '20px 12px', border: LINE_1, borderRadius: '8px', textAlign: 'center',
+      },
+      subSection: { display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '10px', borderTop: LINE_1, minWidth: 0 },
+      subHead: { display: 'flex', alignItems: 'baseline', gap: '6px' },
+      subTitle: { margin: 0, fontSize: '12px', lineHeight: '18px', fontWeight: 600, color: C.text },
+
       /* Frontier: equal-width cards, no rail, no coloured border. */
       entries: { display: 'flex', flexDirection: 'column', gap: '8px', margin: 0, padding: 0, listStyle: 'none', minWidth: 0 },
       /* One step above the section card, never a hole. */
@@ -810,12 +969,12 @@ window.__ModuleLoader__.load({
       },
       markdownPanel: {
         boxSizing: 'border-box', flex: '1 1 auto', minHeight: '160px', minWidth: 0,
-        /* Horizontal padding lives on the column so the 1024px measure stays
+        /* Horizontal padding lives on the column so the 860px measure stays
            centred on wide windows instead of drifting with the panel edge. */
         overflow: 'auto', overflowX: 'hidden', border: LINE_1, borderRadius: '8px',
         background: C.layer, padding: '20px 0',
       },
-      /* Fluid measure: never wider than 1024px, never wider than the panel.
+      /* Fluid measure: never wider than 860px, never wider than the panel.
          The base size is 13px/1.7; LEDGER_CSS lifts it to 14px/1.75 once the
          viewport is wide enough to carry it. Blocks inherit both. */
       mdColumn: {
@@ -886,8 +1045,8 @@ window.__ModuleLoader__.load({
     }
 
     /** Section shell: one equal-weight card — title, optional count/hint. */
-    function Card({ title, count, hint, children, tone }) {
-      return h('section', { style: L.card },
+    function Card({ title, count, hint, children, tone, style }) {
+      return h('section', { style: style === undefined ? L.card : { ...L.card, ...style } },
         h('div', { style: L.cardHead },
           h('h3', { style: L.cardTitle }, title),
           count === undefined || count === null ? null : tag(String(count), tone || C.muted),
@@ -1283,7 +1442,9 @@ window.__ModuleLoader__.load({
           h('span', { style: L.familyValue }, String((counts || {})[key] || 0)),
           h('span', { style: L.familyLabel }, label(`family.${key}`))))),
         h('div', { style: L.field },
-          h('span', { style: L.fieldLabel }, `${label('untestedEntities')} ${untouched.length}`),
+          h('span', { style: L.fieldLabel },
+            `${label('untestedEntities')} ${coverage.untouched || untouched.length}` +
+            (untouched.length < (coverage.untouched || 0) ? ` · ${label('firstN')} ${untouched.length}` : '')),
           untouched.length === 0
             ? h(Empty, { text: label('none') })
             : h('div', { style: L.chips }, untouched.map(entity => h('span', {
@@ -1528,11 +1689,27 @@ window.__ModuleLoader__.load({
             type: 'button', 'data-mw-action': '', style: L.action, onClick: refresh, disabled: !hasSession,
           }, label('refresh', '刷新'))))
 
+      const records = (data && data.records) || {}
+      const totals = records.totals || {}
+      /* The tab label and the family card must agree: totals first, then the
+         counts a pre-records payload carries, then what actually arrived. */
+      const resolvedTotals = {}
+      for (const item of FAMILY_TABS) {
+        const rows = Array.isArray(records[item.family]) ? records[item.family].length : 0
+        const declared = totals[item.family] !== undefined ? Number(totals[item.family]) : undefined
+        const counted = counts[item.family] !== undefined ? Number(counts[item.family]) : undefined
+        resolvedTotals[item.family] = declared !== undefined ? declared : counted !== undefined ? counted : rows
+      }
+      const familyTabs = FAMILY_TABS.map(item => {
+        const total = resolvedTotals[item.family]
+        return { id: item.id, label: `${label(`family.${item.family}`)} ${total}`, disabled: false }
+      })
       const tabs = h('nav', {
         style: L.tabs, 'data-testid': 'makeworld-ledger-tabs', role: 'tablist', 'aria-label': label('ledger', '账本'),
       },
       [
         { id: 'ledger', label: label('ledger', '账本'), disabled: false },
+        ...familyTabs,
         { id: 'report', label: label('reportTitle', '报告'), disabled: !hasSession },
       ].map(item => h('button', {
         key: item.id,
@@ -1551,7 +1728,10 @@ window.__ModuleLoader__.load({
 
       let body
       const scrolls = tab !== 'report'
-      if (tab === 'report') {
+      const familyTab = FAMILY_TABS.find(item => item.id === tab)
+      if (familyTab !== undefined && state.status === 'ready') {
+        body = h(FamilyView, { key: familyTab.family, family: familyTab.family, records, totals: resolvedTotals, t })
+      } else if (tab === 'report') {
         body = h(ReportCard, {
           report: hasSession ? report : { status: 'error', error: label('noSession', '没有可读取的会话。') },
           onRefresh: open,
@@ -1646,6 +1826,379 @@ window.__ModuleLoader__.load({
       '[data-conversation-scroll]:has([data-makeworld-ledger]) [data-composer-card]::after { display: none; }',
     ].join('\n')
 
+    /* ------------------------------------------------ ledger record views -- */
+
+    /*
+     * The five record families (intent / fact / claim / entity / evidence) get
+     * a tab each, rendered as a compact table with expandable rows, a free-text
+     * filter and one enum filter. Goals ride under the intent table, templates
+     * under the claim table, so no family is left without a home.
+     *
+     * Read-only: filtering and expansion are pure client state; nothing here
+     * writes to the ledger.
+     */
+
+    /** Tab order: the families with the most content first. */
+    const FAMILY_TABS = [
+      { id: 'intents', family: 'intents', kind: 'intent' },
+      { id: 'facts', family: 'facts', kind: 'fact' },
+      { id: 'claims', family: 'claims', kind: 'claim' },
+      { id: 'entities', family: 'entities', kind: 'entity' },
+      { id: 'evidence', family: 'evidence', kind: 'evidence' },
+    ]
+
+    /** The enum filter each family offers, if any. */
+    const FAMILY_ENUM = {
+      intents: { field: 'state', key: 'state' },
+      facts: { field: 'basis', key: 'basis' },
+      claims: { field: 'status', key: 'claimStatus' },
+    }
+
+    /** One line of searchable text per record, so `id` matches as well as prose. */
+    function searchText(record) {
+      const parts = []
+      for (const value of Object.values(record)) {
+        if (typeof value === 'string') parts.push(value)
+        else if (Array.isArray(value)) for (const item of value) if (typeof item === 'string') parts.push(item)
+      }
+      return parts.join(' ').toLowerCase()
+    }
+
+    /** Distinct values of one field, in first-seen order. */
+    function distinctValues(rows, field) {
+      const seen = []
+      for (const row of rows) {
+        const value = row[field]
+        if (typeof value === 'string' && value !== '' && !seen.includes(value)) seen.push(value)
+      }
+      return seen
+    }
+
+    /** Two decimals for scores/weights; `—` when the host sent nothing usable. */
+    function fmtNumber(value, digits) {
+      const number = Number(value)
+      if (!Number.isFinite(number)) return '—'
+      return number.toFixed(digits === undefined ? 2 : digits)
+    }
+
+    function collect(ids) {
+      return Array.isArray(ids) ? ids.filter(id => typeof id === 'string' && id !== '') : []
+    }
+
+    /**
+     * Expanded-row content per family. Empty values are dropped rather than
+     * printed as "undefined"; arrays become chips, `steps` stays ordered.
+     */
+    function detailFields(family, record, t) {
+      const label = key => (t ? t(key) : (zh[key] ?? key))
+      const text = value => (typeof value === 'string' ? value : '')
+      const fields = []
+      const add = (key, value, shape) => {
+        if (value === undefined || value === null) return
+        if (Array.isArray(value) && value.length === 0) return
+        if (typeof value === 'string' && value.trim() === '') return
+        fields.push({ label: label(key), value, shape })
+      }
+      if (family === 'intents') {
+        add('tbl.title', text(record.title))
+        add('tbl.expected', text(record.expectedObservation))
+        add('decides', collect(record.decides), 'chips')
+        add('tbl.goal', text(record.goalId))
+        add('derivedFrom', collect(record.derivedFromFactIds), 'chips')
+        add('family.entities', collect(record.entityIds), 'chips')
+        add('tbl.metrics', `${label('uncertainty')} ${fmtNumber(record.uncertainty)} · ${label('cost')} ${record.cost === undefined ? '—' : record.cost}`)
+      } else if (family === 'facts') {
+        add('tbl.content', text(record.detail))
+        add('tbl.basis', record.basis === undefined ? '' : label(`basis.${record.basis}`))
+        add('tbl.type', text(record.type))
+        add('tbl.confidence', fmtNumber(record.confidence))
+        add('tbl.intent', text(record.intentId))
+        add('family.evidence', collect(record.evidenceIds), 'chips')
+        add('family.entities', collect(record.entityIds), 'chips')
+      } else if (family === 'claims') {
+        add('tbl.title', text(record.title))
+        add('tbl.content', text(record.summary))
+        add('tbl.type', text(record.type))
+        add('tbl.status', record.status === undefined ? '' : label(`claimStatus.${record.status}`))
+        add('tbl.weight', record.weight === undefined ? '' : String(record.weight))
+        add('family.evidence', collect(record.evidenceIds), 'chips')
+        add('reproduceSteps', collect(record.reproduceSteps), 'steps')
+        add('evidenceVersion', record.evidenceVersion === undefined ? '' : String(record.evidenceVersion))
+      } else if (family === 'entities') {
+        add('tbl.type', text(record.type))
+        add('tbl.value', text(record.value))
+        add('tbl.parent', text(record.parentId))
+      } else if (family === 'evidence') {
+        add('tbl.label', text(record.label))
+        add('tbl.type', text(record.type))
+        add('tbl.channel', text(record.channel))
+        add('tbl.excerpt', text(record.excerpt))
+        add('tbl.sha', text(record.contentSha))
+        add('layers', collect(record.layers), 'chips')
+      } else if (family === 'goals') {
+        add('tbl.text', text(record.text))
+        add('tbl.acceptance', text(record.acceptance))
+        add('tbl.status', record.status === undefined ? '' : label(`goalStatus.${record.status}`))
+      } else if (family === 'templates') {
+        add('tbl.name', text(record.name))
+        add('tbl.pre', text(record.pre))
+        add('tbl.action', text(record.action))
+        add('tbl.observation', text(record.observation))
+        add('tbl.post', text(record.post))
+      }
+      add('tbl.id', text(record.id))
+      add('createdAt', text(record.createdAt))
+      add('actor', text(record.actor))
+      return fields
+    }
+
+    /** One cell of text: one line by default, two when asked for. */
+    function cell(text, lines, title) {
+      if (text === undefined || text === null || text === '') return h('span', { style: { color: C.caption } }, '—')
+      const value = String(text)
+      const style = lines === 2
+        ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden', overflowWrap: 'anywhere' }
+        : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+      return h('span', { style, title: title === undefined ? value : title }, value)
+    }
+
+    /** A list of ids as outline chips. */
+    function chips(values) {
+      return h('div', { style: L.chips }, values.map((value, index) => h('span', { key: `${value}-${index}`, style: L.chip }, value)))
+    }
+
+    /**
+     * The filter bar: a search box over id/text plus one enum select. Both are
+     * pure client-side; the page never asks the host for a narrower read.
+     */
+    function FilterBar({ family, rows, total, matched, query, onQuery, value, onValue, t }) {
+      const label = key => (t ? t(key) : (zh[key] ?? key))
+      const enumDef = FAMILY_ENUM[family]
+      const options = enumDef === undefined ? [] : distinctValues(rows, enumDef.field)
+      return h('div', { style: L.filterBar },
+        h('input', {
+          type: 'search',
+          value: query,
+          'aria-label': label('search'),
+          placeholder: label('search'),
+          'data-testid': `makeworld-ledger-search-${family}`,
+          onChange: event => onQuery(event.target.value),
+          style: L.input,
+        }),
+        enumDef === undefined || options.length === 0 ? null : h('select', {
+          value,
+          'aria-label': label(enumDef.key),
+          'data-testid': `makeworld-ledger-filter-${family}`,
+          onChange: event => onValue(event.target.value),
+          style: L.select,
+        },
+          h('option', { value: '' }, label('allValues')),
+          options.map(option => h('option', { key: option, value: option }, label(`${enumDef.key}.${option}`)))),
+        h('span', { style: { ...L.rowTail, marginLeft: 'auto' } },
+          rows.length < total ? `${matched} / ${rows.length} · ${label('ofTotal')} ${total}` : `${matched} / ${total}`))
+    }
+
+    /**
+     * One family table. Rows expand in place (no dialog): the detail row is a
+     * second `<tr>` with the full record, and the toggle is a real button so the
+     * interaction stays keyboard reachable even though the row itself is
+     * clickable for the mouse.
+     */
+    function RecordTable({ family, columns, rows, t, emptyText, emptyHint }) {
+      const label = key => (t ? t(key) : (zh[key] ?? key))
+      const [expanded, setExpanded] = React.useState('')
+      if (rows.length === 0) {
+        return h('div', { style: L.emptyBlock },
+          h('p', { style: { margin: 0, fontSize: '13px', lineHeight: '20px', color: C.muted } }, emptyText),
+          emptyHint ? h('p', { style: { margin: 0, fontSize: '12px', lineHeight: '18px', color: C.caption } }, emptyHint) : null)
+      }
+      const width = columns.length + 1
+      return h('div', { style: { minWidth: 0 } },
+        h('table', { style: L.dataTable, 'data-testid': `makeworld-ledger-table-${family}` },
+          h('colgroup', null, columns.map(column => h('col', { key: column.key, style: { width: column.width } })), h('col', { style: { width: '64px' } })),
+          h('thead', null, h('tr', null,
+            columns.map(column => h('th', { key: column.key, style: L.dataTh, scope: 'col' }, label(column.label))),
+            h('th', { key: 'toggle', style: { ...L.dataTh, textAlign: 'right' }, scope: 'col' }, label('details')))),
+          h('tbody', null, rows.flatMap(record => {
+            const id = String(record.id)
+            const open = expanded === id
+            const detailId = `mw-detail-${family}-${id}`
+            const toggle = () => setExpanded(current => (current === id ? '' : id))
+            const head = h('tr', {
+              key: `r-${id}`,
+              style: open ? { background: C.layer2, cursor: 'pointer' } : { cursor: 'pointer' },
+              onClick: toggle,
+            },
+            columns.map(column => h('td', { key: column.key, style: L.dataTd }, column.render(record))),
+            h('td', { key: 'toggle', style: { ...L.dataTd, textAlign: 'right' } },
+              h('button', {
+                type: 'button',
+                'data-mw-action': '',
+                'data-testid': `makeworld-ledger-expand-${family}-${id}`,
+                'aria-expanded': open,
+                'aria-controls': detailId,
+                style: L.rowButton,
+                onClick: event => { event.stopPropagation(); toggle() },
+              }, open ? label('collapse') : label('expand'))))
+            if (!open) return [head]
+            const fields = detailFields(family, record, t)
+            return [
+              head,
+              h('tr', { key: `d-${id}`, id: detailId, 'data-testid': `makeworld-ledger-detail-${family}-${id}` },
+                h('td', { colSpan: width, style: L.detailCell },
+                  h('dl', { style: L.detailGrid }, fields.map(field => h('div', { key: field.label, style: L.detailItem },
+                    h('dt', { style: L.detailLabel }, field.label),
+                    h('dd', { style: L.detailValue }, field.shape === 'chips' && Array.isArray(field.value)
+                      ? chips(field.value)
+                      : field.shape === 'steps' && Array.isArray(field.value)
+                        ? h('ol', { style: { margin: 0, paddingLeft: '20px', display: 'grid', gap: '2px' } },
+                          field.value.map((step, index) => h('li', { key: index, style: { overflowWrap: 'anywhere' } }, step)))
+                        : h('span', { style: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, String(field.value))))))))
+            ]
+          }))))
+    }
+
+    /** Columns per family. Text columns clamp to two lines and keep a `title`. */
+    function columnsOf(family, t) {
+      const label = key => (t ? t(key) : (zh[key] ?? key))
+      if (family === 'intents') {
+        return [
+          { key: 'state', label: 'tbl.state', width: '92px', render: r => (r.state === undefined ? cell('') : cell(label(`state.${r.state}`))) },
+          { key: 'title', label: 'tbl.title', render: r => cell(r.title, 2) },
+          { key: 'expected', label: 'tbl.expected', width: '220px', render: r => cell(r.expectedObservation, 2) },
+          { key: 'decides', label: 'decides', width: '180px', render: r => cell(collect(r.decides).join(' · '), 2) },
+          { key: 'goal', label: 'tbl.goal', width: '80px', render: r => cell(r.goalId) },
+          { key: 'metrics', label: 'tbl.metrics', width: '116px', render: r => cell(`${fmtNumber(r.uncertainty)} / ${r.cost === undefined ? '—' : r.cost}`) },
+          { key: 'id', label: 'tbl.id', width: '84px', render: r => h('span', { style: L.code, title: String(r.id) }, String(r.id)) },
+        ]
+      }
+      if (family === 'facts') {
+        return [
+          { key: 'basis', label: 'tbl.basis', width: '92px', render: r => cell(r.basis === undefined ? '' : label(`basis.${r.basis}`)) },
+          { key: 'type', label: 'tbl.type', width: '80px', render: r => cell(r.type) },
+          { key: 'content', label: 'tbl.content', render: r => cell(r.detail, 2) },
+          { key: 'confidence', label: 'tbl.confidence', width: '76px', render: r => cell(fmtNumber(r.confidence)) },
+          { key: 'intent', label: 'tbl.intent', width: '84px', render: r => cell(r.intentId) },
+          { key: 'evidence', label: 'tbl.evidenceCount', width: '72px', render: r => cell(String(collect(r.evidenceIds).length)) },
+          { key: 'id', label: 'tbl.id', width: '84px', render: r => h('span', { style: L.code, title: String(r.id) }, String(r.id)) },
+        ]
+      }
+      if (family === 'claims') {
+        return [
+          { key: 'type', label: 'tbl.type', width: '84px', render: r => cell(r.type) },
+          { key: 'title', label: 'tbl.title', render: r => cell(r.title, 2) },
+          { key: 'status', label: 'tbl.status', width: '96px', render: r => cell(r.status === undefined ? '' : label(`claimStatus.${r.status}`)) },
+          { key: 'weight', label: 'tbl.weight', width: '64px', render: r => cell(String(r.weight === undefined ? '—' : r.weight)) },
+          { key: 'evidence', label: 'tbl.evidenceCount', width: '72px', render: r => cell(String(collect(r.evidenceIds).length)) },
+          { key: 'id', label: 'tbl.id', width: '84px', render: r => h('span', { style: L.code, title: String(r.id) }, String(r.id)) },
+        ]
+      }
+      if (family === 'entities') {
+        return [
+          { key: 'type', label: 'tbl.type', width: '96px', render: r => cell(r.type) },
+          { key: 'value', label: 'tbl.value', render: r => cell(r.value, 2) },
+          { key: 'parent', label: 'tbl.parent', width: '120px', render: r => cell(r.parentId) },
+          { key: 'id', label: 'tbl.id', width: '84px', render: r => h('span', { style: L.code, title: String(r.id) }, String(r.id)) },
+        ]
+      }
+      if (family === 'evidence') {
+        return [
+          { key: 'type', label: 'tbl.type', width: '76px', render: r => cell(r.type) },
+          { key: 'label', label: 'tbl.label', width: '180px', render: r => cell(r.label, 2) },
+          { key: 'excerpt', label: 'tbl.excerpt', render: r => cell(r.excerpt, 2) },
+          { key: 'channel', label: 'tbl.channel', width: '110px', render: r => cell(r.channel) },
+          { key: 'state', label: 'tbl.status', width: '80px', render: r => cell(r.state) },
+          { key: 'sha', label: 'tbl.sha', width: '84px', render: r => cell(typeof r.contentSha === 'string' ? r.contentSha.slice(0, 8) : '') },
+          { key: 'id', label: 'tbl.id', width: '84px', render: r => h('span', { style: L.code, title: String(r.id) }, String(r.id)) },
+        ]
+      }
+      // goals / templates use the same shell with fewer columns
+      if (family === 'goals') {
+        return [
+          { key: 'text', label: 'tbl.text', render: r => cell(r.text, 2) },
+          { key: 'acceptance', label: 'tbl.acceptance', width: '220px', render: r => cell(r.acceptance, 2) },
+          { key: 'status', label: 'tbl.status', width: '96px', render: r => cell(r.status === undefined ? '' : label(`goalStatus.${r.status}`)) },
+          { key: 'id', label: 'tbl.id', width: '84px', render: r => h('span', { style: L.code, title: String(r.id) }, String(r.id)) },
+        ]
+      }
+      return [
+        { key: 'name', label: 'tbl.name', width: '140px', render: r => cell(r.name) },
+        { key: 'relation', label: 'tbl.relation', render: r => cell([r.pre, r.action, r.observation, r.post].filter(Boolean).join('  →  '), 2) },
+        { key: 'id', label: 'tbl.id', width: '84px', render: r => h('span', { style: L.code, title: String(r.id) }, String(r.id)) },
+      ]
+    }
+
+    /** Rows a family tab shows, plus its filter controls and secondary section. */
+    function FamilyView({ family, records, totals, t }) {
+      const label = key => (t ? t(key) : (zh[key] ?? key))
+      const [query, setQuery] = React.useState('')
+      const [value, setValue] = React.useState('')
+      const rows = Array.isArray(records[family]) ? records[family] : []
+      /* One number for the tab, the card and the empty state: a family that has
+         rows but no records payload must not read as "nothing here yet". */
+      const declared = totals[family] === undefined ? undefined : Number(totals[family])
+      const total = declared === undefined ? rows.length : declared
+      const enumDef = FAMILY_ENUM[family]
+      const needle = query.trim().toLowerCase()
+      const filtered = rows.filter(record => {
+        if (enumDef !== undefined && value !== '' && record[enumDef.field] !== value) return false
+        if (needle !== '') return searchText(record).includes(needle)
+        return true
+      })
+      /* Goals ride under intents, templates under claims: they are anchors of
+         those two families, not standalone work items. */
+      const secondary = family === 'intents'
+        ? { family: 'goals', title: label('family.goals'), rows: records.goals || [], columns: columnsOf('goals', t) }
+        : family === 'claims'
+          ? { family: 'templates', title: label('family.templates'), rows: records.templates || [], columns: columnsOf('templates', t) }
+          : undefined
+      const trimmed = rows.length > 0 && rows.length < total
+        ? `${label('onlyRecentPrefix')} ${rows.length} ${label('onlyRecentSuffix')}`.replace(/\s+/g, ' ').trim()
+        : null
+      const unloaded = rows.length === 0 && total > 0
+      const emptyText = unloaded
+        ? label('familyUnloaded')
+        : rows.length === 0 ? label('emptyFamily') : label('noMatch')
+      const emptyHint = unloaded || rows.length > 0
+        ? null
+        : `${label('writeWith')} cairn_write kind:"${(FAMILY_TABS.find(item => item.family === family) || { kind: family }).kind}"`
+      return h(Card, {
+        title: label(`family.${family}`),
+        count: total,
+        hint: trimmed,
+        /* 860 (table min) + 2 × 14 (card padding): the border wraps the table,
+           and the whole card scrolls together on a narrow panel. */
+        style: family === 'intents' || family === 'facts' || family === 'claims' || family === 'entities' || family === 'evidence'
+          ? { minWidth: '888px' }
+          : undefined,
+      },
+        h(FilterBar, {
+          family, rows, total, matched: filtered.length, query, onQuery: setQuery, value, onValue: setValue, t,
+        }),
+        h(RecordTable, {
+          family,
+          columns: columnsOf(family, t),
+          rows: filtered,
+          t,
+          emptyText,
+          emptyHint,
+        }),
+        secondary === undefined ? null : h('div', { style: L.subSection },
+          h('div', { style: L.subHead },
+            h('h4', { style: L.subTitle }, secondary.title),
+            h('span', { style: L.groupCount }, String(secondary.rows.length))),
+          h(RecordTable, {
+            family: secondary.family,
+            columns: secondary.columns,
+            rows: secondary.rows,
+            t,
+            emptyText: label('emptyFamily'),
+            emptyHint: secondary.family === 'goals'
+              ? `${label('writeWith')} cairn_open`
+              : `${label('writeWith')} cairn_write kind:"template"`,
+          })))
+    }
+
     /**
      * Platform settings panel (sidebar): Git Bash environment and MCP.
      * The ledger lives in the conversation tab bar instead, per session.
@@ -1726,7 +2279,7 @@ window.__ModuleLoader__.load({
       dictionaries: { zh, en },
       /* The colour tokens, so a test can assert the surface ladder by identity. */
       tokens: C,
-      LedgerPanel, EnvironmentPanel, McpPanel, CoverageCard, FrontierCard, ReviewCard, GapsCard, HealthCard, ReportCard, SyncBadge, Card, tag,
+      LedgerPanel, EnvironmentPanel, McpPanel, FamilyView, RecordTable, FilterBar, FAMILY_TABS, columnsOf, detailFields, CoverageCard, FrontierCard, ReviewCard, GapsCard, HealthCard, ReportCard, SyncBadge, Card, tag,
       useLiveLedger,
     }
     return module.exports

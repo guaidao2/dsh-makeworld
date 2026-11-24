@@ -605,7 +605,11 @@ test('the page keeps dsh-pentest\'s shape: identity card, sub-tabs, grouped sect
   assert.ok(tabs, 'the sub-tab bar exists')
   assert.equal(tabs.props.role, 'tablist')
   const tabButtons = findAll(tabs, 'button')
-  assert.deepEqual(tabButtons.map((button) => textOf(button)), ['账本', '报告'])
+  const tabLabels = tabButtons.map((button) => textOf(button))
+  assert.equal(tabLabels[0], '账本', 'the ledger tab stays first')
+  assert.equal(tabLabels[tabLabels.length - 1], '报告', 'the report tab stays last')
+  assert.deepEqual(tabLabels.slice(1, -1).map((label) => label.split(' ')[0]),
+    ['意图', '事实', '结论', '实体', '证据'], 'one tab per record family, in info-density order')
   assert.equal(tabButtons[0].props['aria-selected'], true, 'the ledger tab is active by default')
   assert.equal(tabButtons[0].props.style.boxShadow.includes('inset'), true, 'the active tab carries the inset underline')
   assert.equal(tabs.props.style.width, '100%', 'the tab bar spans the column')
@@ -829,4 +833,181 @@ test('the platform panel keeps its own surface logic, unchanged', async () => {
     assert.equal(field.props.style.background, C.layer2, 'panel inputs are one step up, not a hole')
     assert.equal(field.props.style.border, C.border)
   }
+})
+
+/* ------------------------------------------------------------- records -- */
+
+/** One panel payload with every record family populated. */
+const RECORDS = {
+  goals: [{ id: 'g-1', text: '修好缓存失效', acceptance: '旧值不再出现', status: 'open' }],
+  intents: [
+    { id: 'i-1', title: '复现缓存问题', state: 'running', expectedObservation: '第二次读到旧值', decides: ['旧值来自缓存', '旧值来自写队列'], uncertainty: 0.4, cost: 2, goalId: 'g-1' },
+    { id: 'i-2', title: '验证写放大', state: 'blocked', expectedObservation: '', decides: [], uncertainty: 0.7, cost: 3, goalId: 'g-1' },
+    { id: 'i-3', title: '查日志', state: 'done', expectedObservation: '日志里没有写队列', decides: [], uncertainty: 0.2, cost: 1, goalId: 'g-1' },
+  ],
+  facts: [{ id: 'f-1', basis: 'assumed', type: 'info', detail: '缓存会过期', confidence: 0.3, intentId: 'i-1', evidenceIds: ['ev-1'] }],
+  claims: [{ id: 'c-1', type: 'insight', title: '旧值来自缓存', status: 'pending', weight: 3, evidenceIds: ['ev-1'], reproduceSteps: ['打开页面', '再读一次'] }],
+  entities: [{ id: 'e-1', type: 'service', value: 'redis', parentId: 'e-2' }],
+  evidence: [{ id: 'ev-1', type: 'log', label: 'redis 日志', excerpt: 'expected fresh, got stale', channel: 'node --test', state: 'active', contentSha: 'abc12345deadbeef', layers: ['raw', 'decoded'] }],
+  templates: [{ id: 't-1', name: '覆盖断言', pre: '有断言', action: '重放', observation: '旧值', post: '确认' }],
+  /* Deliberately larger than the rows: the page must say it is showing a slice. */
+  totals: { goals: 1, intents: 5, facts: 1, claims: 1, entities: 1, evidence: 1, templates: 1 },
+}
+
+const RECORD_PAYLOAD = { ...SNAPSHOT, records: RECORDS }
+
+test('each record family gets a table tab with its own columns and counts', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime })
+  const scope = withFetch(RECORD_PAYLOAD)
+  let tree
+  try {
+    await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+    tree = await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+    const button = findAll(tree, 'button').find((node) => node.props['data-testid'] === 'makeworld-ledger-tab-intents')
+    assert.ok(button, 'the intent tab exists')
+    button.props.onClick()
+    tree = await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+  } finally { scope.restore() }
+
+  const table = findAll(tree, 'table').find((node) => node.props['data-testid'] === 'makeworld-ledger-table-intents')
+  assert.ok(table, 'the intent table renders')
+  const headers = findAll(table, 'th').map((node) => textOf(node).trim())
+  assert.deepEqual(headers, ['状态', '标题', '预期观测', '要区分的读法', '目标', '不确定度 / 成本', 'id', '明细'])
+  const text = textOf(table)
+  for (const id of ['i-1', 'i-2', 'i-3']) assert.ok(text.includes(id), `row ${id} renders`)
+  assert.match(text, /进行中/)
+  assert.match(text, /已阻塞/)
+
+  /* The tab label carries the family total, and the card admits the slice. */
+  const tabs = findAll(tree, 'nav').find((node) => node.props['data-testid'] === 'makeworld-ledger-tabs')
+  assert.match(textOf(tabs), /意图 5/)
+  assert.match(textOf(tree), /仅显示最近 3 条/)
+  /* Goals ride under the intent table. */
+  assert.match(textOf(tree), /修好缓存失效/)
+})
+
+/** Props of one family view, reused by the table-level tests. */
+function familyProps(family, overrides) {
+  return { family, records: RECORDS, totals: RECORDS.totals, t: undefined, ...overrides }
+}
+
+test('a family table expands a row into a detail block and collapses it', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime })
+  const props = familyProps('intents')
+  const render = () => settle(module.__test.FamilyView, props, runtime)
+  let tree = await render()
+
+  const expand = findAll(tree, 'button').find((node) => node.props['data-testid'] === 'makeworld-ledger-expand-intents-i-1')
+  assert.ok(expand, 'the row has an expand button')
+  assert.equal(expand.props['aria-expanded'], false)
+  expand.props.onClick({ stopPropagation() {} })
+  tree = await render()
+
+  const detail = findAll(tree, 'tr').find((node) => node.props['data-testid'] === 'makeworld-ledger-detail-intents-i-1')
+  assert.ok(detail, 'the detail row appears under the record')
+  const text = textOf(detail)
+  assert.match(text, /第二次读到旧值/, 'the full observation is shown')
+  assert.match(text, /旧值来自缓存/, 'decides are listed')
+  assert.match(text, /0\.40/, 'uncertainty keeps two decimals')
+  assert.match(text, /i-1/)
+
+  const collapse = findAll(tree, 'button').find((node) => node.props['data-testid'] === 'makeworld-ledger-expand-intents-i-1')
+  assert.equal(collapse.props['aria-expanded'], true, 'the toggle reports its state')
+  collapse.props.onClick({ stopPropagation() {} })
+  tree = await render()
+  assert.equal(findAll(tree, 'tr').some((node) => node.props['data-testid'] === 'makeworld-ledger-detail-intents-i-1'), false,
+    'clicking again collapses it')
+})
+
+test('the search box and the enum filter narrow a family on the client', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime })
+  const props = familyProps('intents')
+  const render = () => settle(module.__test.FamilyView, props, runtime)
+  let tree = await render()
+
+  const search = findAll(tree, 'input').find((node) => node.props['data-testid'] === 'makeworld-ledger-search-intents')
+  assert.ok(search, 'the family tab has a search box')
+  search.props.onChange({ target: { value: '写放大' } })
+  tree = await render()
+  let table = findAll(tree, 'table').find((node) => node.props['data-testid'] === 'makeworld-ledger-table-intents')
+  assert.equal(findAll(table, 'tr').length, 2, 'header plus one matching row')
+  assert.match(textOf(table), /i-2/)
+  assert.equal(textOf(table).includes('i-1'), false)
+
+  const filter = findAll(tree, 'select').find((node) => node.props['data-testid'] === 'makeworld-ledger-filter-intents')
+  assert.ok(filter, 'the intent tab filters by state')
+  filter.props.onChange({ target: { value: 'blocked' } })
+  tree = await render()
+  table = findAll(tree, 'table').find((node) => node.props['data-testid'] === 'makeworld-ledger-table-intents')
+  assert.match(textOf(table), /i-2/)
+  assert.equal(textOf(table).includes('i-3'), false, 'the state filter stacks on the search')
+})
+
+test('an empty family says so and names the tool that writes it', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime })
+  const empty = { ...RECORDS, entities: [], totals: { ...RECORDS.totals, entities: 0 } }
+  const tree = await settle(module.__test.FamilyView, { family: 'entities', records: empty, totals: empty.totals, t: undefined }, runtime)
+  const text = textOf(tree)
+  assert.match(text, /这一族还没有记录/)
+  assert.match(text, /cairn_write kind:"entity"/)
+  assert.equal(findAll(tree, 'table').length, 0, 'no empty table is rendered')
+})
+
+test('a truncated family hint reports the slice it actually received', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime })
+  const tree = await settle(module.__test.FamilyView, familyProps('intents'), runtime)
+  assert.match(textOf(tree), /仅显示最近 3 条/, 'the hint counts the rows in hand, not the family total')
+})
+
+test('a family with declared rows but no loaded records does not claim to be empty', async () => {
+  const { module } = loadClient()
+  const tree = await section(module, 'FamilyView', {
+    family: 'facts', records: {}, totals: { facts: 500 },
+  })
+  const text = textOf(tree)
+  assert.match(text, /明细没有随这次加载送达/, 'the page explains the gap instead of lying')
+  assert.equal(text.includes('这一族还没有记录'), false, 'it must not prompt a duplicate write')
+  assert.equal(text.includes('cairn_write'), false)
+})
+
+test('each family renders its own rows, and the tab body is keyed by family', async () => {
+  const { module } = loadClient()
+  /* The tab body passes `key`, so React mounts a fresh FamilyView per family.
+     This test pins the intent: same props, different keys, different instances. */
+  const facts = await section(module, 'FamilyView', { family: 'facts', records: { facts: [{ id: 'f-1', detail: 'x', basis: 'assumed' }] }, totals: { facts: 1 } })
+  const claims = await section(module, 'FamilyView', { family: 'claims', records: { claims: [{ id: 'c-1', title: 'y', status: 'pending' }] }, totals: { claims: 1 } })
+  assert.match(textOf(facts), /f-1/)
+  assert.match(textOf(claims), /c-1/)
+  assert.equal(textOf(facts).includes('c-1'), false)
+  /* Keyed by family, so React drops the previous instance (query/expanded) on switch. */
+  assert.match(String(module.__test.LedgerPanel), /key: familyTab\.family/,
+    'the tab body carries a per-family key')
+})
+
+test('a truncated family says how many rows were searched and how many exist', async () => {
+  const { module } = loadClient()
+  const rows = Array.from({ length: 3 }, (_, index) => ({ id: `f-${index}`, detail: `row ${index}`, basis: 'assumed' }))
+  const tree = await section(module, 'FamilyView', { family: 'facts', records: { facts: rows }, totals: { facts: 500 } })
+  const text = textOf(tree)
+  assert.match(text, /3 \/ 3 · 共 500/, 'the denominator names the loaded rows and the family total')
+  assert.match(text, /仅显示最近 3 条/, 'the card hint stays about what was loaded')
+})
+
+test('the untouched chips name the slice when the payload capped them', async () => {
+  const { module } = loadClient()
+  const tree = await section(module, 'CoverageCard', {
+    coverage: {
+      total: 220, evidenced: 0, observed: 0, untouched: 220,
+      entities: [{ id: 'x-1', type: 'host', value: '10.0.0.1', tier: 'untouched' }],
+    },
+    counts: {},
+  })
+  const text = textOf(tree)
+  assert.match(text, /未触及实体 220/, 'the real count, not the capped list length')
+  assert.match(text, /列前 1/, 'and it admits the list is a slice')
 })

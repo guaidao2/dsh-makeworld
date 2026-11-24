@@ -32,6 +32,9 @@ import {
 
 /** Hard caps that keep one view or one batch from eating the context window. */
 export const MAX_RECORDS_PER_WRITE = 24
+
+/** Per-family cap for the panel's detail lists. */
+export const MAX_PANEL_RECORDS = 200
 const EXCERPT_CHARS = 280
 
 /**
@@ -641,6 +644,22 @@ export class Ledger {
         broken: loaded.broken,
         brokenLines: loaded.brokenLines,
         ...nextView(state, { limit: PANEL_FRONTIER_LIMIT }),
+        /* Detail lists for the per-family tabs. Evidence bodies stay in blobs;
+           the excerpt is enough to recognise a row. */
+        records: {
+          goals: state.goals.slice(-MAX_PANEL_RECORDS),
+          intents: state.intents.slice(-MAX_PANEL_RECORDS),
+          facts: state.facts.slice(-MAX_PANEL_RECORDS),
+          claims: state.claims.slice(-MAX_PANEL_RECORDS),
+          entities: state.entities.slice(-MAX_PANEL_RECORDS),
+          evidence: state.evidence.slice(-MAX_PANEL_RECORDS).map(item => ({ ...item })),
+          templates: state.templates.slice(-MAX_PANEL_RECORDS),
+          totals: {
+            goals: state.goals.length, intents: state.intents.length, facts: state.facts.length,
+            claims: state.claims.length, entities: state.entities.length,
+            evidence: state.evidence.length, templates: state.templates.length,
+          },
+        },
       },
       coverage: coverageView(state),
       review: reviewView(state),
