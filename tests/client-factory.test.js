@@ -19,6 +19,8 @@ function createElement(type, props, ...children) {
 const React = {
   createElement,
   useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+  useCallback: (fn) => fn,
+  useMemo: (fn) => fn(),
   useRef: (initial) => ({ current: initial }),
   useEffect: () => {},
   useMemo: (factory) => factory(),
@@ -36,9 +38,18 @@ function loadClient(options = {}) {
       removeChild: () => {},
     },
     createElement: () => ({ dataset: {}, textContent: '', remove() {} }),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    visibilityState: 'visible',
   }
   const sandbox = {
-    window: { __ModuleLoader__: { load: (definition) => { loaded = definition } } },
+    window: {
+      __ModuleLoader__: { load: (definition) => { loaded = definition } },
+      setInterval: (fn, ms) => { if (options.timers !== undefined) options.timers.push({ fn, ms }); return 1 },
+      clearInterval: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    },
     document,
     console,
     encodeURIComponent,
@@ -103,6 +114,15 @@ function hookRuntime() {
       effects.push(run)
     },
     useMemo(factory) { cursor += 1; return factory() },
+    useCallback(fn, deps) {
+      const at = cursor++
+      const previous = slots[at]
+      const same = previous !== undefined && Array.isArray(deps) && Array.isArray(previous.deps)
+        && deps.length === previous.deps.length && deps.every((value, index) => value === previous.deps[index])
+      if (same) return previous.fn
+      slots[at] = { deps, fn }
+      return fn
+    },
   }
 }
 
@@ -293,7 +313,7 @@ test('markdown: empty and non-string input come back as no blocks', () => {
 
 /* --------------------------------------------------------------- sections */
 
-test('coverage section: three tiers, percentages and untouched chips', async () => {
+test('coverage section: four equal number boxes, one family line, untouched chips', async () => {
   const { module } = loadClient()
   const tree = await section(module, 'CoverageCard', {
     coverage: {
@@ -306,13 +326,18 @@ test('coverage section: three tiers, percentages and untouched chips', async () 
     counts: { goals: 1, intents: 2, facts: 3, claims: 1, entities: 4, evidence: 2, templates: 0 },
   })
   const text = textOf(tree)
-  assert.match(text, /有证据 2 \/ 4/, 'the card states the tiered total')
-  /* Three 20px counts, each with its label and share. */
-  assert.match(text, /2\s+有证据 50%/)
-  assert.match(text, /1\s+有观测 25%/)
-  assert.match(text, /1\s+未触及 25%/)
+  /* Nessus-style: four equal boxes (tier counts + entity total), no bar. */
+  const boxes = findAll(tree, 'div').filter((node) => node.props.role === 'group')
+  assert.equal(boxes.length, 1, 'the numbers live in one labelled group')
+  assert.equal(boxes[0].props['aria-label'], '有证据 2, 有观测 1, 未触及 1, 实体 4')
+  assert.match(text, /2\s+有证据/)
+  assert.match(text, /1\s+有观测/)
+  assert.match(text, /1\s+未触及/)
+  assert.match(text, /4\s+实体/, 'the entity total is the fourth box')
+  assert.match(text, /目标 1 · 意图 2 · 事实 3 · 结论 1 · 证据 2 · 模板 0/,
+    'family counts are one grey line, not pills')
+  assert.equal((text.match(/4\s+实体/g) || []).length, 1, 'the entity total is not repeated under the family line')
   assert.match(text, /redis/, 'the untouched entity value is shown, not just counted')
-  assert.match(text, /实体 4/, 'family counts ride the card header')
 })
 
 test('frontier section: a waiting item shows its missing deps, a ready one does not', async () => {
@@ -330,9 +355,17 @@ test('frontier section: a waiting item shows its missing deps, a ready one does 
   assert.match(text, /待前置/)
   assert.match(text, /f-3/)
   assert.match(text, /40%/)
-  const bordered = findAll(tree, 'li').filter((row) => row.props.style.borderLeftColor !== undefined)
-  assert.equal(bordered.length, 2)
-  assert.notEqual(bordered[0].props.style.borderLeftColor, bordered[1].props.style.borderLeftColor, 'ready and waiting differ visually')
+  /* Equal-weight cards: no rail, no coloured border, no pills. Readiness is a
+     word on the second line. */
+  const cards = findAll(tree, 'li')
+  assert.equal(cards.length, 2)
+  for (const card of cards) {
+    assert.equal(card.props.style.borderLeftColor, undefined, 'no left rail')
+    const pills = findAll(card, 'span').filter((node) => node.props.style !== undefined && node.props.style.borderRadius === '999px')
+    assert.equal(pills.length, 0, 'no pills inside an entry')
+  }
+  assert.match(textOf(cards[0]), /score 0\.82 · 就绪/)
+  assert.match(textOf(cards[1]), /score 0\.31 · 待前置/)
 })
 
 test('review section: items are grouped by status, worst first, each with a count', async () => {
@@ -414,6 +447,7 @@ test('report section renders markdown as structure, not as a pre block', async (
 const SNAPSHOT = {
   initialized: true,
   ledger: 'C:/work/.cairn',
+  lastAt: '2026-11-24T15:40:00+08:00',
   task: { subject: 'repo', objective: '修好缓存失效', acceptance: '旧值不再出现', openedAt: '2026-11-24T10:00:00Z' },
   counts: { goals: 1, intents: 2, facts: 3, claims: 1, entities: 4, evidence: 2, templates: 0, events: 17 },
   frontier: [
@@ -457,8 +491,8 @@ test('ledger page renders the ready snapshot with every section', async () => {
   }
   const text = textOf(tree)
   assert.match(text, /修好缓存失效/, 'the objective is the page title')
-  assert.match(text, /旧值不再出现/, 'acceptance is secondary information')
-  assert.match(text, /事件 17/)
+  assert.match(text, /旧值不再出现/, 'acceptance rides the meta line')
+  assert.match(text, /最近写入 15:40/, 'the sync signal carries the last write')
   assert.match(text, /复现缓存问题/)
   assert.match(text, /读到旧值/, 'frontier decides are visible')
   assert.match(text, /f-3/, 'a waiting intent shows what it waits on')
@@ -479,8 +513,9 @@ test('ledger page degrades through no-session, unopened and transport failure', 
   const { module } = loadClient({ react: runtime })
   const noSession = await settle(module.__test.LedgerPanel, { sessionId: undefined }, runtime)
   assert.match(textOf(noSession), /没有可读取的会话/)
-  const report = findAll(noSession, 'button').find((button) => textOf(button).includes('看报告'))
-  assert.equal(report.props.disabled, true, 'the report button is disabled without a session')
+  const reportTab = findAll(noSession, 'button').find((button) => button.props['data-testid'] === 'makeworld-ledger-tab-report')
+  assert.ok(reportTab, 'the report sub-tab exists')
+  assert.equal(reportTab.props.disabled, true, 'the report sub-tab is disabled without a session')
 
   const emptyRuntime = hookRuntime()
   const emptyModule = loadClient({ react: emptyRuntime }).module
@@ -516,4 +551,173 @@ test('every dictionary key the page asks for exists in both languages', () => {
   const zh = plain(module.__test.dictionaries.zh)
   const en = plain(module.__test.dictionaries.en)
   assert.deepEqual(Object.keys(zh).sort(), Object.keys(en).sort(), 'zh and en cover the same keys')
+})
+
+test('the ledger page re-reads on a timer so new intents and facts appear without a manual refresh', async () => {
+  const timers = []
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime, timers })
+  const scope = withFetch(SNAPSHOT)
+  try {
+    const props = { sessionId: 's-1', useProjection: () => ({ revision: 0 }) }
+    const first = await settle(module.__test.LedgerPanel, props, runtime)
+    assert.match(textOf(first), /修好缓存失效/)
+    assert.equal(scope.calls.length, 1, 'the first render reads once')
+    assert.equal(timers.length, 1, 'the page installs exactly one poll timer')
+    assert.equal(timers[0].ms, 15000, 'the timer is only the fallback behind the projection push')
+
+    timers[0].fn()
+    const second = await settle(module.__test.LedgerPanel, props, runtime)
+    assert.equal(scope.calls.length, 2, 'the tick triggers a second read, not a manual click')
+    assert.match(textOf(second), /修好缓存失效/, 'the previous snapshot stays while the new one loads')
+  } finally {
+    scope.restore()
+  }
+})
+
+
+/* ------------------------------------------------------- format + sync --- */
+
+test('the page keeps dsh-pentest\'s shape: identity card, sub-tabs, grouped sections', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime })
+  const scope = withFetch(SNAPSHOT)
+  let tree
+  try {
+    tree = await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+  } finally { scope.restore() }
+
+  /* Flat header (no card), then the tab bar, then one grid of equal sections. */
+  const header = findAll(tree, 'header')[0]
+  assert.equal(header.props.style.border, undefined, 'the header is flat, not a card')
+  const tabs = findAll(tree, 'nav').find((node) => node.props['data-testid'] === 'makeworld-ledger-tabs')
+  assert.ok(tabs, 'the sub-tab bar exists')
+  assert.equal(tabs.props.role, 'tablist')
+  const tabButtons = findAll(tabs, 'button')
+  assert.deepEqual(tabButtons.map((button) => textOf(button)), ['账本', '报告'])
+  assert.equal(tabButtons[0].props['aria-selected'], true, 'the ledger tab is active by default')
+  assert.equal(tabButtons[0].props.style.boxShadow.includes('inset'), true, 'the active tab carries the inset underline')
+  assert.equal(tabs.props.style.width, '100%', 'the tab bar spans the column')
+  assert.equal(textOf(tabs).includes(String(SNAPSHOT.broken + SNAPSHOT.ledgerProblemCount)), true,
+    'the inconsistency count rides the tab bar as a small chip')
+
+  /* Every section is one cell of the same grid — no primary card. */
+  const grid = findAll(tree, 'div').find((node) => node.props.style !== undefined
+    && String(node.props.style.gridTemplateColumns || '').includes('minmax(340px'))
+  assert.ok(grid, 'the sections live in one auto-fit grid')
+  assert.equal(findAll(grid, 'section').length, 4, 'coverage, frontier, review, gaps')
+  const titles = findAll(grid, 'h3').map((node) => textOf(node).trim())
+  assert.deepEqual(titles, ['覆盖', '前沿', '待处理', '缺口'])
+  for (const section of findAll(grid, 'section')) {
+    assert.equal(section.props.style.border, '1px solid var(--dsw-alias-border-l2, rgba(127,127,127,.28))',
+      'sections share one weight')
+  }
+
+  /* The health strip sits above the grid and is the only tinted surface. */
+  const strip = findAll(tree, 'div').find((node) => node.props['data-testid'] === 'makeworld-ledger-health')
+  assert.ok(strip, 'the inconsistency strip exists when there are rows')
+  assert.equal(String(strip.props.style.borderLeft).includes('3px solid'), true, 'the strip carries the 3px rail')
+  assert.match(textOf(strip), /账本不一致/, 'the strip names itself')
+  assert.match(textOf(strip), /坏行/, 'the strip lists rows')
+})
+
+test('the sync signal stays quiet but visible', async () => {
+  const { module } = loadClient()
+  const render = (props) => module.__test.SyncBadge(props)
+
+  const synced = await section(module, 'SyncBadge', { status: 'ready', refreshing: false, lastAt: '2026-11-24T15:40:00+08:00' })
+  assert.match(textOf(synced), /最近写入 15:40/, 'the text is the last write, not a "synced" claim')
+  assert.equal(synced.props['aria-live'], 'off', 'a four-second poll must not be an aria-live region')
+  assert.match(synced.props.title, /每 4 秒/, 'the full explanation lives in the tooltip')
+  assert.match(synced.props['aria-label'], /已同步/, 'the read state stays reachable as text')
+  const dot = findAll(synced, 'span').find((node) => node.props.style.borderRadius === '999px')
+  assert.equal(dot.props.style.background, 'var(--dsw-alias-state-success, #30a46c)')
+
+  const refreshing = render({ status: 'ready', refreshing: true, lastAt: '2026-11-24T15:40:00+08:00' })
+  assert.match(textOf(refreshing), /最近写入 15:40/, 'the clock does not flicker while a read is in flight')
+  assert.match(refreshing.props['aria-label'], /更新中/)
+  const busyDot = findAll(refreshing, 'span').find((node) => node.props.style.borderRadius === '999px')
+  assert.equal(busyDot.props.style.background, 'var(--dsw-alias-state-warn, #f5a524)')
+
+  const failed = render({ status: 'error', refreshing: false })
+  assert.match(failed.props['aria-label'], /同步失败/)
+  const failedDot = findAll(failed, 'span').find((node) => node.props.style.borderRadius === '999px')
+  assert.equal(failedDot.props.style.background, 'var(--dsw-alias-state-error, #e5484d)')
+})
+
+test('the ledger page polls without a control, and the report is fetched only by its tab', async () => {
+  const timers = []
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime, timers })
+  const scope = withFetch(SNAPSHOT)
+  let tree
+  try {
+    tree = await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+    assert.equal(scope.calls.length, 1)
+    assert.equal(timers.length, 1, 'exactly one poll timer')
+    const sync = findAll(tree, 'span').find((node) => node.props['data-testid'] === 'makeworld-ledger-sync')
+    assert.equal(sync.props['data-sync'], 'synced')
+    assert.equal(findAll(tree, 'button').some((button) => textOf(button).includes('同步')), false, 'no sync toggle was added')
+
+    const reportTab = findAll(tree, 'button').find((button) => button.props['data-testid'] === 'makeworld-ledger-tab-report')
+    reportTab.props.onClick()
+    tree = await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+    assert.equal(scope.calls.length, 2, 'opening the report tab reads the deliverable once')
+    assert.equal(scope.calls[1].includes('view=report'), true)
+    const again = findAll(tree, 'button').find((button) => button.props['data-testid'] === 'makeworld-ledger-tab-ledger')
+    again.props.onClick()
+    tree = await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+    const back = findAll(tree, 'button').find((button) => button.props['data-testid'] === 'makeworld-ledger-tab-report')
+    back.props.onClick()
+    tree = await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+    assert.equal(scope.calls.filter((url) => url.includes('view=report')).length, 1, 'the report is cached across tab switches')
+  } finally { scope.restore() }
+})
+
+
+test('the health strip lists five rows and counts the rest', async () => {
+  const { module } = loadClient()
+  const rows = Array.from({ length: 7 }, (_, index) => ({
+    id: `f-${index}`,
+    status: index === 0 ? 'dangling' : 'malformed',
+    color: 'x',
+    text: `问题 ${index}`,
+  }))
+  const tree = await section(module, 'HealthCard', { rows, count: 7 })
+  const items = findAll(tree, 'li')
+  assert.equal(items.length, 5, 'five rows are listed')
+  assert.match(textOf(tree), /还有 2 条/, 'the rest is counted, not listed')
+})
+
+test('a ledger revision from the session projection triggers a re-read', async () => {
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime, timers: [] })
+  const scope = withFetch(SNAPSHOT)
+  let revision = 0
+  const props = () => ({ sessionId: 's-1', useProjection: () => ({ revision }) })
+  try {
+    await settle(module.__test.LedgerPanel, props(), runtime)
+    assert.equal(scope.calls.length, 1, 'the first render reads once')
+    revision = 1
+    const tree = await settle(module.__test.LedgerPanel, props(), runtime)
+    assert.equal(scope.calls.length, 2, 'a cairn_* write bumps the revision and re-reads the file')
+    assert.match(textOf(tree), /修好缓存失效/, 'the page stays rendered across the push refresh')
+  } finally {
+    scope.restore()
+  }
+})
+
+test('without the ledger projection the page falls back to 4s polling', async () => {
+  const timers = []
+  const runtime = hookRuntime()
+  const { module } = loadClient({ react: runtime, timers })
+  const scope = withFetch(SNAPSHOT)
+  try {
+    /* No useProjection prop at all: the projection row is absent. */
+    await settle(module.__test.LedgerPanel, { sessionId: 's-1' }, runtime)
+    assert.equal(timers.length, 1)
+    assert.equal(timers[0].ms, 4000, 'no push means polling carries the sync')
+  } finally {
+    scope.restore()
+  }
 })

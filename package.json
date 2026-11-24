@@ -1,6 +1,6 @@
 {
   "name": "dsh-makeworld",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "dsh-makeworld：DeepSeek Harness 的任务账本插件。use the less, make more —— 记录信念、实验与证据，而不是待办清单。",
   "author": "guaidao2",
   "type": "module",
@@ -17,7 +17,8 @@
     "./client": "./src/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json",
-    "./ledger-panel": "./src/ledger-panel.js"
+    "./ledger-panel": "./src/ledger-panel.js",
+    "./ledger-version": "./src/ledger-version.js"
   },
   "files": [
     "src/**/*.js",

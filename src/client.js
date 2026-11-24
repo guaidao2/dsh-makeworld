@@ -43,7 +43,10 @@ window.__ModuleLoader__.load({
       untested: '未触及',
       unsupported: '无证据结论',
       blocked: '被阻塞的意图',
-      score: '分',
+      score: 'score',
+      recentWrite: '最近写入',
+      morePrefix: '还有',
+      moreSuffix: '条',
       ready: '就绪',
       notReady: '待前置',
       evidenced: '有证据',
@@ -99,6 +102,11 @@ window.__ModuleLoader__.load({
       acceptance: '验收',
       openedAt: '开场',
       updatedAt: '更新',
+      synced: '已同步',
+      syncing: '更新中',
+      syncFailed: '同步失败',
+      syncTitle: '账本每 4 秒、窗口聚焦与页面可见时自动重读',
+      regenerate: '重新生成',
       path: '账本路径',
       events: '事件',
       groups: '组',
@@ -115,7 +123,7 @@ window.__ModuleLoader__.load({
       frontierHint: 'score 是启发式，不是最优策略',
       gapHint: '没发现不等于不存在',
       reportTitle: '报告',
-      reportHint: '由台账生成，与 LEDGER.md 同源',
+      reportHint: '渲染自 report.md',
       copy: '复制 Markdown',
       copied: '已复制',
       closeReport: '收起报告',
@@ -145,6 +153,9 @@ window.__ModuleLoader__.load({
       unsupported: 'Unsupported claims',
       blocked: 'Blocked intents',
       score: 'score',
+      recentWrite: 'Last write',
+      morePrefix: 'and',
+      moreSuffix: 'more',
       ready: 'ready',
       notReady: 'waiting',
       evidenced: 'evidenced',
@@ -200,6 +211,11 @@ window.__ModuleLoader__.load({
       acceptance: 'Acceptance',
       openedAt: 'Opened',
       updatedAt: 'Updated',
+      synced: 'Synced',
+      syncing: 'Updating',
+      syncFailed: 'Sync failed',
+      syncTitle: 'The ledger re-reads every 4 seconds, on window focus and when the page becomes visible',
+      regenerate: 'Regenerate',
       path: 'Ledger path',
       events: 'Events',
       groups: 'group(s)',
@@ -216,7 +232,7 @@ window.__ModuleLoader__.load({
       frontierHint: 'score is a heuristic, not an optimum',
       gapHint: 'Not found is not the same as absent',
       reportTitle: 'Report',
-      reportHint: 'Generated from the ledger; same source as LEDGER.md',
+      reportHint: 'Rendered from report.md',
       copy: 'Copy Markdown',
       copied: 'Copied',
       closeReport: 'Hide report',
@@ -238,6 +254,10 @@ window.__ModuleLoader__.load({
       info: 'var(--dsw-alias-state-info, #6e56cf)',
       borderColor: 'var(--dsw-alias-border-l2, rgba(127,127,127,.28))',
       borderColorSoft: 'var(--dsw-alias-border-l1, rgba(127,127,127,.16))',
+      /* --dsw-alias-label-caption and --dsw-alias-bg-base are the two tokens
+         dsh-pentest leans on for meta text and nested blocks. */
+      caption: 'var(--dsw-alias-label-caption, #8b8d98)',
+      base: 'var(--dsw-alias-bg-base, transparent)',
     }
 
     const S = {
@@ -601,110 +621,184 @@ window.__ModuleLoader__.load({
 
     /* --------------------------------------------------------------- ledger */
 
-    /* --------------------------------------------------------- ledger styles */
+    /*
+     * The layout follows a Nessus-style scan detail page, as the author asked:
+     * a flat header, a tab bar, and then every section as an equal-weight card
+     * in one grid. There is deliberately NO "primary/secondary" hierarchy —
+     * nothing on this page is more important than anything else, and the reader
+     * decides what to look at.
+     *
+     * What is still borrowed from dsh-pentest (`refs/dsh-pentest/.../client`):
+     * the flat header + tab bar skeleton, the 12px rhythm, the neutral pills
+     * (`FindingsView .severity`: layer-2 body, tone on the glyphs, `0 10px` /
+     * 22px), bordered group rows (`AssetsView .row`), and the report toolbar
+     * over a bordered Markdown panel (`ReportView`).
+     *
+     * dsh-pentest gets there with CSS modules and @xyflow/react. This file has
+     * no build step and no dependencies, so the same rules live in inline style
+     * objects (`L`) plus one view-scoped stylesheet (`LEDGER_CSS`).
+     */
 
-    /* The ledger page keeps dsh-lingeye's design language (one card per
-       section, one accent colour per state, id badges, hairline separators)
-       and spends its budget on density rather than decoration: 13px body /
-       11px meta / 0.5px borders, 4-8-14px spacing steps. Every colour is a DSH
-       theme variable with a light fallback, so the page follows the app theme
-       instead of inventing a palette. */
     const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
+
+    /** 1px hairlines, as dsh-pentest draws them (`--dsw-alias-border-l1/l2`). */
+    const LINE_1 = `1px solid ${C.borderColorSoft}`
+    const LINE_2 = `1px solid ${C.borderColor}`
 
     const L = {
       page: {
-        boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '14px',
-        flex: '1 1 auto', minHeight: 0, width: '100%',
-        padding: '18px 22px',
-        /* The composer seat is floated above this view by the host (see the
-           composer-overlay opt-in on the root), and DSH publishes its measured
-           height as --dsh-composer-height on the shared scrollport. Reserving
-           that room keeps the last card reachable instead of parking it under
-           the input card. */
-        paddingBottom: 'calc(var(--dsh-composer-height, 0px) + 24px)',
-        overflowX: 'hidden', overflowY: 'auto',
+        boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px',
+        flex: '1 1 auto', height: '100%', minHeight: 0, width: '100%',
+        padding: '16px 20px',
+        /* The shell never scrolls: the header and the tab bar stay put while
+           the active tab's content scrolls underneath them. */
+        overflow: 'hidden',
         color: C.text, fontSize: '13px', lineHeight: 1.55,
       },
-      header: {
-        flex: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start',
-        justifyContent: 'space-between', gap: '10px 16px',
-        paddingBottom: '12px', borderBottom: C.border,
-      },
-      headerMain: { display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, flex: '1 1 320px' },
+
+      /* Flat header: title, one meta line, actions on the right. No card. */
+      header: { flex: 'none', display: 'flex', alignItems: 'flex-start', gap: '12px', minWidth: 0 },
+      headerMain: { display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0, flex: '1 1 auto' },
       title: {
-        margin: 0, fontSize: '19px', fontWeight: 650, lineHeight: 1.35, letterSpacing: '-0.01em',
-        color: C.text, overflowWrap: 'anywhere',
+        margin: 0, fontSize: '20px', lineHeight: '28px', fontWeight: 600, color: C.text,
+        display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2,
+        overflow: 'hidden', overflowWrap: 'anywhere',
       },
-      subtitle: {
-        display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 16px',
-        fontSize: '12px', color: C.muted, minWidth: 0,
+      metaLine: {
+        display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px 8px',
+        fontSize: '12px', lineHeight: '18px', color: C.caption, minWidth: 0,
       },
-      subtitleItem: { display: 'inline-flex', alignItems: 'baseline', gap: '5px', minWidth: 0, overflowWrap: 'anywhere' },
-      subtitleLabel: { fontSize: '11px', color: C.faint, whiteSpace: 'nowrap' },
-      headerSide: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flex: '0 0 auto' },
-      badgeRow: { display: 'flex', flexWrap: 'wrap', gap: '4px', justifyContent: 'flex-end' },
-      actions: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
-      card: { flex: 'none', border: C.border, borderRadius: '12px', padding: '14px 16px', background: C.layer },
-      /* The primary card carries no border: it is a surface, not one more box. */
-      cardPrimary: { flex: 'none', border: 'none', borderRadius: '12px', padding: '18px 20px', background: C.layer2 },
-      stats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: '10px', marginTop: '12px' },
-      stat: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
-      statValue: { fontSize: '20px', fontWeight: 650, lineHeight: 1.15, letterSpacing: '-0.01em', color: C.text },
-      statLabel: { display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: C.muted },
-      footer: { display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '12px', paddingTop: '10px', borderTop: C.border },
-      cardHead: {
-        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px',
-        margin: '0 0 10px', minWidth: 0,
+      metaItem: { minWidth: 0, overflowWrap: 'anywhere' },
+      metaLabel: { color: C.caption },
+      headerActions: { display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto' },
+
+      /* Sync signal: one 6px dot (read state) plus the last write time. */
+      sync: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', lineHeight: '18px', color: C.caption, whiteSpace: 'nowrap' },
+      syncDot: { width: '6px', height: '6px', borderRadius: '999px', flex: 'none' },
+
+      /* Tab bar: full width, 1px rule, 2px brand underline on the active tab. */
+      tabs: { flex: 'none', display: 'flex', alignItems: 'center', gap: '4px', width: '100%', borderBottom: LINE_1, overflowX: 'auto' },
+      tab: {
+        flex: 'none', whiteSpace: 'nowrap', appearance: 'none', border: 0, background: 'none',
+        padding: '6px 12px', borderRadius: '8px 8px 0 0', font: 'inherit',
+        fontSize: '13px', lineHeight: '20px', color: C.faint, cursor: 'pointer',
       },
-      cardTitle: { margin: 0, fontSize: '13px', fontWeight: 600, color: C.text, whiteSpace: 'nowrap' },
-      cardTail: { marginLeft: 'auto', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' },
-      columns: { display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' },
+      tabActive: { color: C.text, fontWeight: 600, boxShadow: `inset 0 -2px 0 ${C.brand}` },
+      tabTail: { marginLeft: 'auto', flex: 'none', padding: '0 2px' },
+
+      /* The 账本 tab owns the page's scroll; the composer seat floats above it
+         (composer-overlay opt-in on the root) and DSH publishes its height on
+         the shared scrollport, so the scroller reserves that room. */
+      content: {
+        display: 'flex', flexDirection: 'column', gap: '12px', flex: '1 1 auto', minHeight: 0,
+        overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px',
+        paddingBottom: 'calc(var(--dsh-composer-height, 0px) + 20px)',
+      },
+      /* The 报告 tab scrolls inside its own Markdown panel. */
+      contentReport: {
+        display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 auto', minHeight: 0,
+        overflow: 'hidden', paddingBottom: 'calc(var(--dsh-composer-height, 0px) + 20px)',
+      },
+
+      /* Structural problems: a full-width strip offered before the grid. */
+      strip: {
+        flex: 'none', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0,
+        padding: '8px 12px', borderRadius: '8px',
+        background: `color-mix(in srgb, ${C.error} 8%, transparent)`,
+        borderLeft: `3px solid ${C.error}`,
+      },
+      stripHead: { display: 'flex', alignItems: 'baseline', gap: '6px', fontSize: '12px', lineHeight: '18px', fontWeight: 600, color: C.error },
+      stripRow: { display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px', fontSize: '12px', lineHeight: '18px', color: C.muted, minWidth: 0 },
+      stripMore: { margin: 0, fontSize: '12px', lineHeight: '18px', color: C.muted },
+
+      /* Equal-weight grid: every section is one cell of the same size. */
+      grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '12px', alignItems: 'stretch', minWidth: 0 },
+      card: {
+        display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0,
+        border: LINE_2, borderRadius: '12px', padding: '12px 14px', background: C.layer,
+      },
+      cardHead: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', minWidth: 0 },
+      cardTitle: { margin: 0, fontSize: '13px', lineHeight: '20px', fontWeight: 600, color: C.text, whiteSpace: 'nowrap' },
+      cardHint: { fontSize: '12px', lineHeight: '18px', color: C.caption, minWidth: 0, overflowWrap: 'anywhere' },
+
+      /* Coverage: four number boxes, then the family counts as one text line. */
+      boxes: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))', gap: '8px', minWidth: 0 },
+      box: {
+        display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0,
+        padding: '8px 10px', border: LINE_1, borderRadius: '8px', background: C.base,
+      },
+      boxValue: { fontSize: '20px', lineHeight: '24px', fontWeight: 600, color: C.text },
+      boxLabel: { fontSize: '11px', lineHeight: '16px', color: C.caption, overflowWrap: 'anywhere' },
+      familyLine: { display: 'flex', flexWrap: 'wrap', gap: '2px 10px', fontSize: '12px', lineHeight: '18px', color: C.caption, minWidth: 0 },
       field: { display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 },
-      fieldLabel: { fontSize: '11px', color: C.faint },
-      fieldValue: { fontSize: '12px', color: C.text, overflowWrap: 'anywhere' },
-      list: { display: 'flex', flexDirection: 'column', gap: '6px', margin: 0, padding: 0, listStyle: 'none' },
+      fieldLabel: { fontSize: '11px', lineHeight: '16px', fontWeight: 600, color: C.caption },
+      chips: { display: 'flex', flexWrap: 'wrap', gap: '4px 6px', minWidth: 0 },
+      chip: { fontSize: '12px', lineHeight: '18px', color: C.muted, background: C.base, borderRadius: '4px', padding: '0 6px', overflowWrap: 'anywhere', minWidth: 0 },
+
+      /* Frontier: equal-width cards, no rail, no coloured border. */
+      entries: { display: 'flex', flexDirection: 'column', gap: '8px', margin: 0, padding: 0, listStyle: 'none', minWidth: 0 },
+      entry: {
+        display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0,
+        padding: '10px 12px', border: LINE_1, borderRadius: '8px', background: C.base,
+      },
+      entryHead: { display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 },
+      entryTitle: { flex: '1 1 auto', minWidth: 0, margin: 0, fontSize: '15px', lineHeight: '22px', fontWeight: 600, color: C.text, overflowWrap: 'anywhere' },
+      entryMeta: { margin: 0, fontSize: '12px', lineHeight: '18px', color: C.caption, overflowWrap: 'anywhere' },
+      entryText: { margin: 0, fontSize: '13px', lineHeight: '20px', color: C.muted, overflowWrap: 'anywhere' },
+      blocks: { display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 },
+      block: { display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: C.layer2 },
+      blockLabel: { fontSize: '11px', lineHeight: '16px', fontWeight: 600, color: C.caption },
+
+      /* Grouped rows (review / gaps): a name line, then plain id + text + kind. */
+      groups: { display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 },
+      group: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
+      groupHead: { display: 'flex', alignItems: 'baseline', gap: '6px', minWidth: 0 },
+      groupTitle: { margin: 0, fontSize: '12px', lineHeight: '18px', fontWeight: 600, color: C.text },
+      groupCount: { fontSize: '11px', lineHeight: '18px', color: C.caption },
+      dot: { width: '6px', height: '6px', borderRadius: '999px', flex: 'none' },
+      quadGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', minWidth: 0 },
+      rows: { display: 'flex', flexDirection: 'column', gap: 0, margin: 0, padding: 0, listStyle: 'none', minWidth: 0 },
       row: {
-        display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px',
-        fontSize: '12px', lineHeight: 1.5, minWidth: 0, overflowWrap: 'anywhere',
+        display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px', minWidth: 0,
+        padding: '4px 0', borderBottom: LINE_1, fontSize: '12px', lineHeight: '18px',
       },
-      rowText: { color: C.text, overflowWrap: 'anywhere', minWidth: 0, flex: '1 1 220px' },
-      item: {
-        display: 'flex', flexDirection: 'column', gap: '5px', border: C.border,
-        borderLeftWidth: '3px', borderLeftStyle: 'solid', borderLeftColor: C.faint,
-        borderRadius: '9px', padding: '9px 11px', background: 'transparent', minWidth: 0,
+      rowText: { color: C.muted, minWidth: 0, flex: '1 1 160px', overflowWrap: 'anywhere' },
+      rowTail: { fontSize: '11px', lineHeight: '18px', color: C.caption, flex: 'none' },
+      extraRow: { display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px', minWidth: 0, paddingTop: '8px', borderTop: LINE_1 },
+
+      /* Report tab: a thin toolbar over a bordered Markdown panel. */
+      reportRoot: { display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 auto', minHeight: 0, minWidth: 0 },
+      reportBar: { flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' },
+      reportBarHint: { margin: 0, fontSize: '12px', lineHeight: '18px', color: C.caption },
+      actions: { display: 'flex', flex: 'none', flexWrap: 'wrap', gap: '10px' },
+      action: {
+        appearance: 'none', border: 0, background: 'none', padding: '0 2px', font: 'inherit',
+        fontSize: '12px', lineHeight: '18px', color: C.muted, cursor: 'pointer',
       },
-      itemHead: { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px', minWidth: 0 },
-      itemTitle: { fontSize: '13px', fontWeight: 600, color: C.text, overflowWrap: 'anywhere', minWidth: 0 },
-      bar: {
-        display: 'flex', height: '12px', borderRadius: '999px', overflow: 'hidden',
-        background: C.layer2, gap: '1px',
+      markdownPanel: {
+        boxSizing: 'border-box', flex: '1 1 auto', minHeight: '160px', minWidth: 0,
+        overflow: 'auto', border: LINE_2, borderRadius: '8px', background: C.base, padding: '16px 20px',
       },
-      legend: { display: 'flex', flexWrap: 'wrap', gap: '4px 18px', marginTop: '9px', fontSize: '11px', color: C.muted },
-      legendItem: { display: 'inline-flex', alignItems: 'center', gap: '6px' },
-      dot: { width: '8px', height: '8px', borderRadius: '50%', flex: 'none' },
-      chips: { display: 'flex', flexWrap: 'wrap', gap: '4px', minWidth: 0 },
-      empty: { margin: 0, fontSize: '12px', color: C.faint },
+      mdColumn: {
+        maxWidth: '72ch', margin: '0 auto', width: '100%',
+        display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0,
+        fontSize: '13px', lineHeight: 1.7, color: C.muted,
+      },
       notice: {
-        margin: 0, fontSize: '12px', color: C.muted, padding: '8px 10px',
-        borderRadius: '8px', border: C.border, background: C.layer2, overflowWrap: 'anywhere',
+        margin: 0, padding: '16px', borderRadius: '8px', border: LINE_2, background: C.base,
+        fontSize: '13px', lineHeight: '20px', color: C.muted, textAlign: 'center', overflowWrap: 'anywhere',
       },
-      button: {
-        border: C.border, background: C.layer2, color: C.text, borderRadius: '7px',
-        padding: '3px 10px', cursor: 'pointer', fontSize: '12px', lineHeight: 1.7, fontFamily: 'inherit',
-      },
-      code: {
-        fontFamily: MONO, fontSize: '11px', color: C.muted, background: C.layer2,
-        border: C.border, borderRadius: '5px', padding: '1px 5px', overflowWrap: 'anywhere',
-      },
+      empty: { margin: 0, padding: '16px 0', fontSize: '12px', lineHeight: '18px', textAlign: 'center', color: C.caption },
+      code: { fontFamily: MONO, fontSize: '11px', lineHeight: '18px', color: C.caption, overflowWrap: 'anywhere', minWidth: 0 },
+      inlineCode: { fontFamily: MONO, fontSize: '12px', background: C.layer, borderRadius: '4px', padding: '0 4px' },
       pre: {
-        margin: '6px 0 0', fontFamily: MONO, fontSize: '11.5px', lineHeight: 1.6,
-        background: C.layer2, border: C.border, borderRadius: '8px', padding: '10px 12px',
-        overflowX: 'auto', whiteSpace: 'pre',
+        margin: 0, fontFamily: MONO, fontSize: '12px', lineHeight: 1.6,
+        background: C.layer, borderRadius: '6px', padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre',
       },
-      mdBody: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
-      table: { width: '100%', borderCollapse: 'collapse', fontSize: '12px', margin: '6px 0' },
-      th: { textAlign: 'left', padding: '4px 8px', borderBottom: C.border, color: C.faint, fontWeight: 500 },
-      td: { padding: '5px 8px', borderBottom: `0.5px solid ${C.borderColor}`, verticalAlign: 'top', overflowWrap: 'anywhere' },
+      table: { width: '100%', borderCollapse: 'collapse', fontSize: '12px' },
+      th: { textAlign: 'left', padding: '4px 8px', borderBottom: LINE_2, color: C.caption, fontWeight: 500 },
+      td: { padding: '5px 8px', borderBottom: LINE_1, verticalAlign: 'top', overflowWrap: 'anywhere' },
+      footnote: { margin: 0, fontSize: '11px', lineHeight: '16px', color: C.caption },
     }
 
     /** One status colour per state; error is reserved for real breakage. */
@@ -716,45 +810,45 @@ window.__ModuleLoader__.load({
 
     const STATUS_ORDER = ['blocked', 'unsupported', 'dangling', 'wrong-kind', 'malformed', 'stale', 'assumption', 'incomplete', 'untested', 'deferred', 'satisfied']
 
-    /** A pill: `tone` sets ink plus an 11% wash, so badges read in both themes. */
+    /**
+     * A pill, dsh-pentest style (`FindingsView .severity`): neutral layer-2 body,
+     * the tone only on the glyphs, `0 10px` / 22px. Reserved for states that
+     * genuinely need a marker — section counts and the tab-bar count. `solid`
+     * is the high/critical variant; `surface` lets a pill sit on a layer-2 card
+     * without vanishing into it.
+     */
     function tag(text, tone, options) {
       const color = tone || C.muted
+      const solid = options !== undefined && options.solid === true
+      const surface = options !== undefined && options.surface !== undefined ? options.surface : C.layer2
       return h('span', {
         style: {
-          ...S.badge,
-          color: options && options.solid ? 'var(--dsw-alias-bg-layer-1, #fff)' : color,
-          borderColor: `color-mix(in srgb, ${color} 34%, transparent)`,
-          background: options && options.solid ? color : `color-mix(in srgb, ${color} 11%, transparent)`,
-          overflowWrap: 'anywhere',
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          padding: '0 10px', borderRadius: '999px', fontSize: '12px', lineHeight: '22px',
+          maxWidth: '100%', overflowWrap: 'anywhere',
+          background: solid ? color : surface,
+          color: solid ? '#fff' : color,
         },
       }, text)
     }
 
-    /** Record ids are opaque; monospace keeps them scannable, `title` keeps them whole. */
-    function idTag(id) {
+    /** Record ids are caption text: mono, 11px, no box. */
+    function idText(id) {
       if (id === undefined || id === null || id === '') return null
-      return h('span', { style: { ...L.code, color: C.faint }, title: String(id) }, String(id))
+      return h('span', { style: { ...L.code, flex: 'none' }, title: String(id) }, String(id))
     }
 
-    function dot(color) {
-      return h('span', { style: { ...L.dot, background: color }, 'aria-hidden': 'true' })
+    function dot(color, size) {
+      return h('span', { style: { ...L.dot, width: size || '6px', height: size || '6px', background: color }, 'aria-hidden': 'true' })
     }
 
-    function field(label, value) {
-      return h('div', { style: L.field },
-        h('span', { style: L.fieldLabel }, label),
-        h('span', { style: L.fieldValue }, fmtValue(value)))
-    }
-
-    /** Section shell: title, count badge, optional hint and right-hand tail. */
-    function Card({ title, count, hint, tail, children, tone, variant }) {
-      /* Two weights only: the coverage surface, and everything else. */
-      return h('section', { style: variant === 'primary' ? L.cardPrimary : L.card },
+    /** Section shell: one equal-weight card — title, optional count/hint. */
+    function Card({ title, count, hint, children, tone }) {
+      return h('section', { style: L.card },
         h('div', { style: L.cardHead },
-          h('h3', { style: variant === 'primary' ? { ...L.cardTitle, fontSize: '14px' } : L.cardTitle }, title),
+          h('h3', { style: L.cardTitle }, title),
           count === undefined || count === null ? null : tag(String(count), tone || C.muted),
-          hint ? h('span', { style: { fontSize: '11px', color: C.faint } }, hint) : null,
-          tail ? h('div', { style: L.cardTail }, tail) : null),
+          hint ? h('span', { style: L.cardHint }, hint) : null),
         children)
     }
 
@@ -768,9 +862,49 @@ window.__ModuleLoader__.load({
       return Number.isFinite(number) ? number.toFixed(2) : '—'
     }
 
-    function percent(part, total) {
-      if (!(total > 0)) return '0%'
-      return `${Math.round((part * 100) / total)}%`
+    /** `HH:MM` of one ISO stamp, or '' when the host sent something unparsable. */
+    function clockOf(stamp) {
+      if (typeof stamp !== 'string' || stamp === '') return ''
+      const time = Date.parse(stamp)
+      if (!Number.isFinite(time)) return ''
+      const date = new Date(time)
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    }
+
+    /**
+     * The sync signal for the live read: one 6px dot and a timestamp.
+     *
+     * Two different facts, kept apart on purpose:
+     *   - the TEXT is the ledger's last write (`lastAt`, host clock): "最近写入
+     *     15:40". Calling that "已同步" was misleading — an agent that has not
+     *     written for an hour would show a stale time on a page that re-reads
+     *     every four seconds;
+     *   - the DOT is the read itself: green = the last fetch succeeded, amber =
+     *     a fetch is in flight, red = the fetch failed.
+     *
+     * Deliberately NOT an aria-live region: announcing "updating…" every four
+     * seconds would be the opposite of quiet, and the fetch state only changes
+     * colour. The state word therefore rides in `aria-label` and `title`.
+     */
+    function SyncBadge({ status, refreshing, lastAt, t }) {
+      const label = key => (t ? t(key) : (zh[key] ?? key))
+      const tone = status === 'ready'
+        ? (refreshing ? C.warn : C.success)
+        : status === 'error' ? C.error : C.faint
+      const state = status === 'ready' ? (refreshing ? 'syncing' : 'synced') : status === 'error' ? 'syncFailed' : 'syncing'
+      const clock = clockOf(lastAt)
+      const text = `${label('recentWrite')} ${clock === '' ? '—' : clock}`
+      const title = `${text} · ${label(state)} · ${label('syncTitle')}`
+      return h('span', {
+        'data-testid': 'makeworld-ledger-sync',
+        'data-sync': state,
+        style: L.sync,
+        title,
+        'aria-label': title,
+        'aria-live': 'off',
+      },
+        h('span', { style: { ...L.syncDot, background: tone }, 'aria-hidden': 'true' }),
+        h('span', null, text))
     }
 
     /* ---------------------------------------------------------- markdown ---- */
@@ -882,26 +1016,25 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * Three visual steps, not two. `#` is the document title, `##` a section
-     * and `###` a record; collapsing the first two into one size was what made
-     * the rendered report read as an unbroken wall.
+     * Three visual steps, as DSH's own report views draw them: the document
+     * title (20/28, ruled underneath), a section (16/24), a record (14/22).
      */
     function mdHeading(level) {
       if (level === 1) {
-        return { margin: '4px 0 10px', fontSize: '19px', fontWeight: 650, lineHeight: 1.3, letterSpacing: '-0.01em', color: C.text, overflowWrap: 'anywhere' }
+        return { margin: 0, paddingBottom: '8px', borderBottom: LINE_2, fontSize: '20px', lineHeight: '28px', fontWeight: 600, color: C.text, overflowWrap: 'anywhere' }
       }
       if (level === 2) {
-        return { margin: '16px 0 6px', fontSize: '15px', fontWeight: 600, lineHeight: 1.4, color: C.text, overflowWrap: 'anywhere' }
+        return { margin: 0, fontSize: '16px', lineHeight: '24px', fontWeight: 600, color: C.text, overflowWrap: 'anywhere' }
       }
-      return { margin: '12px 0 4px', fontSize: '13px', fontWeight: 600, color: C.muted, overflowWrap: 'anywhere' }
+      return { margin: 0, fontSize: '14px', lineHeight: '22px', fontWeight: 600, color: C.text, overflowWrap: 'anywhere' }
     }
 
     /** Inline spans → React nodes (text nodes, never HTML). */
     function inlineNodes(text, keyPrefix) {
       return parseInline(text).map((span, index) => {
         const key = `${keyPrefix}-i${index}`
-        if (span.kind === 'code') return h('code', { key, style: L.code }, span.value)
-        if (span.kind === 'strong') return h('strong', { key, style: { fontWeight: 650, color: C.text } }, span.value)
+        if (span.kind === 'code') return h('code', { key, style: L.inlineCode }, span.value)
+        if (span.kind === 'strong') return h('strong', { key, style: { fontWeight: 600, color: C.text } }, span.value)
         if (span.kind === 'em') return h('em', { key }, span.value)
         return span.value
       })
@@ -915,23 +1048,20 @@ window.__ModuleLoader__.load({
           const tag = block.level === 1 ? 'h2' : block.level === 2 ? 'h3' : 'h4'
           return h(tag, { key, style: mdHeading(block.level) }, inlineNodes(block.text, key))
         }
-        if (block.type === 'rule') return h('hr', { key, style: { border: 'none', borderTop: C.border, margin: '10px 0' } })
+        if (block.type === 'rule') return h('hr', { key, style: { border: 'none', borderTop: LINE_2, margin: 0 } })
         if (block.type === 'code') return h('pre', { key, style: L.pre }, h('code', null, block.text))
         if (block.type === 'quote') {
           return h('blockquote', {
             key,
-            style: {
-              margin: '6px 0', padding: '2px 0 2px 10px', borderLeft: `2px solid ${C.borderColor}`,
-              color: C.muted, fontSize: '12px', overflowWrap: 'anywhere',
-            },
+            style: { margin: 0, padding: '0 0 0 10px', borderLeft: `2px solid ${C.borderColor}`, color: C.muted, fontSize: '13px', lineHeight: 1.7, overflowWrap: 'anywhere' },
           }, inlineNodes(block.text, key))
         }
         if (block.type === 'list') {
           return h(block.ordered ? 'ol' : 'ul', {
-            key, style: { margin: '4px 0', paddingLeft: '20px', display: 'grid', gap: '2px' },
+            key, style: { margin: 0, paddingLeft: '20px', display: 'grid', gap: '4px', fontSize: '13px', lineHeight: 1.7 },
           }, block.items.map((item, itemIndex) => h('li', {
             key: `${key}-l${itemIndex}`,
-            style: { margin: 0, paddingLeft: item.depth > 0 ? `${item.depth * 12}px` : 0, overflowWrap: 'anywhere', fontSize: '12.5px' },
+            style: { margin: 0, paddingLeft: item.depth > 0 ? `${item.depth * 12}px` : 0, overflowWrap: 'anywhere' },
           }, inlineNodes(item.text, `${key}-l${itemIndex}`))))
         }
         if (block.type === 'table') {
@@ -940,7 +1070,7 @@ window.__ModuleLoader__.load({
             h('tbody', null, block.rows.map((row, rowIndex) => h('tr', { key: `r${rowIndex}` },
               row.map((cell, cellIndex) => h('td', { key: `c${cellIndex}`, style: L.td }, cell))))))
         }
-        return h('p', { key, style: { margin: '5px 0', color: C.text, overflowWrap: 'anywhere', fontSize: '12.5px' } }, inlineNodes(block.text, key))
+        return h('p', { key, style: { margin: 0, color: C.muted, fontSize: '13px', lineHeight: 1.7, overflowWrap: 'anywhere' } }, inlineNodes(block.text, key))
       })
     }
 
@@ -964,9 +1094,15 @@ window.__ModuleLoader__.load({
       missingEdgeEnd: 'dangling',
     }
 
+    /** Rows a health strip lists before it says "还有 N 条". */
+    const HEALTH_ROWS = 5
+
     /**
-     * Read the host's read-only ledger snapshot for one session.
-     * The page never writes; `cairn_*` tools stay the only writers.
+     * Read the ledger snapshot.
+     *
+     * A refresh keeps the previous snapshot on screen while the new one loads,
+     * and aborts the superseded request: the page polls, so overlapping reads
+     * would otherwise land out of order and flash the loading state.
      */
     function useLedger(sessionId, nonce) {
       const [state, setState] = React.useState({ status: 'idle' })
@@ -975,20 +1111,67 @@ window.__ModuleLoader__.load({
           setState({ status: 'no-session' })
           return undefined
         }
-        let live = true
-        setState({ status: 'loading' })
-        fetch('/makeworld/ledger?session=' + encodeURIComponent(String(sessionId)), { cache: 'no-store', credentials: 'same-origin' })
+        const controller = typeof AbortController === 'function' ? new AbortController() : undefined
+        const aborted = () => controller !== undefined && controller.signal.aborted
+        setState(previous => (previous.status === 'ready' ? { ...previous, refreshing: true } : { status: 'loading' }))
+        fetch('/makeworld/ledger?session=' + encodeURIComponent(String(sessionId)), {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          ...(controller === undefined ? {} : { signal: controller.signal }),
+        })
           .then(async (response) => {
             const value = await response.json()
             if (!response.ok) throw new Error(value.error || ('HTTP ' + response.status))
-            if (live) setState({ status: 'ready', data: value })
+            if (!aborted()) setState({ status: 'ready', data: value })
           })
           .catch((error) => {
-            if (live) setState({ status: 'error', error: error instanceof Error ? error.message : String(error) })
+            if (aborted()) return
+            setState({ status: 'error', error: error instanceof Error ? error.message : String(error) })
           })
-        return () => { live = false }
+        return () => { if (controller !== undefined) controller.abort() }
       }, [sessionId, nonce])
       return state
+    }
+
+    /**
+     * Re-read on a timer, on tab focus, and when the page becomes visible.
+     *
+     * The ledger is written by tools in the conversation, so a page that only
+     * refreshed on demand showed stale intents and facts — the same class of
+     * bug the old 灵眼 panel had. The read is local file IO, so polling is
+     * cheap; nothing polls while the page is hidden.
+     */
+    function useLiveLedger(sessionId, revision, hasPush) {
+      const [nonce, setNonce] = React.useState(0)
+      const bump = React.useCallback(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+        setNonce(value => value + 1)
+      }, [])
+      /* A cairn_* write bumps the session projection revision; that is the
+         write signal the ledger file itself cannot emit. */
+      const seen = React.useRef(revision)
+      React.useEffect(() => {
+        if (revision === seen.current) return
+        seen.current = revision
+        bump()
+      }, [revision, bump])
+      React.useEffect(() => {
+        /* Hosts and test harnesses may expose a partial window/document. */
+        if (typeof window === 'undefined' || typeof window.setInterval !== 'function') return undefined
+        if (typeof document === 'undefined') return undefined
+        /* Push is the primary signal; the timer only covers a lost event. Without
+           the projection row there is no push at all, so fall back to polling. */
+        const timer = window.setInterval(bump, hasPush === false ? 4000 : 15000)
+        window.addEventListener('focus', bump)
+        const onVisibility = () => { if (document.visibilityState === 'visible') bump() }
+        document.addEventListener('visibilitychange', onVisibility)
+        return () => {
+          window.clearInterval(timer)
+          window.removeEventListener('focus', bump)
+          document.removeEventListener('visibilitychange', onVisibility)
+        }
+      }, [bump])
+      return { nonce, refresh: bump, state: useLedger(sessionId, nonce) }
     }
 
     /** Read the markdown deliverable on demand; nothing is fetched until asked. */
@@ -1010,64 +1193,57 @@ window.__ModuleLoader__.load({
 
     /* --------------------------------------------------- ledger sections ---- */
 
-    /** Data health: unparsable lines, structural problems, reference cycles. */
+    /**
+     * Structural problems: a full-width strip above the grid, only when it has
+     * rows. Red wash and a 3px left rail are the one coloured surface on the
+     * page; the first five rows are listed and the rest is counted.
+     */
     function HealthCard({ rows, count, t }) {
       const label = key => (t ? t(key) : (zh[key] ?? key))
-      return h(Card, {
-        title: label('inconsistent'),
-        count,
-        tone: C.warn,
-        hint: label('healthHint'),
-      },
-        h('ul', { style: L.list }, rows.map((row, index) => h('li', { key: `health-${index}`, style: L.row },
-          tag(label(`status.${row.status}`), row.color),
-          idTag(row.id),
-          h('span', { style: L.rowText }, row.text)))))
+      const shown = rows.slice(0, HEALTH_ROWS)
+      const rest = rows.length - shown.length
+      return h('div', { style: L.strip, 'data-testid': 'makeworld-ledger-health' },
+        h('div', { style: L.stripHead },
+          h('span', null, label('inconsistent')),
+          h('span', { style: { fontWeight: 400, color: C.muted } }, String(count === undefined ? rows.length : count))),
+        h('ul', { style: L.rows }, shown.map((row, index) => h('li', { key: `health-${index}`, style: L.stripRow },
+          h('span', null, label(`status.${row.status}`)),
+          idText(row.id),
+          h('span', { style: { ...L.rowText, flex: '1 1 220px' } }, row.text)))),
+        rest > 0
+          ? h('p', { style: L.stripMore }, `${label('morePrefix')} ${rest} ${label('moreSuffix')}`.replace(/\s+/g, ' ').trim())
+          : null)
     }
 
+    /** Coverage as four equal number boxes plus one line of family counts. */
     function CoverageCard({ coverage, counts, t }) {
       const label = key => (t ? t(key) : (zh[key] ?? key))
-      const total = Math.max(1, coverage.total)
       const untouched = (coverage.entities || []).filter(entity => entity.tier === 'untouched')
-      const tiers = [
-        { key: 'evidenced', value: coverage.evidenced || 0, color: C.success },
-        { key: 'observed', value: coverage.observed || 0, color: C.warn },
-        { key: 'untouched', value: coverage.untouched || 0, color: C.faint },
+      const boxes = [
+        { key: 'evidenced', value: coverage.evidenced || 0, label: label('evidenced') },
+        { key: 'observed', value: coverage.observed || 0, label: label('observed') },
+        { key: 'untouched', value: coverage.untouched || 0, label: label('untouched') },
+        { key: 'entities', value: coverage.total || 0, label: label('family.entities') },
       ]
-      /* This card answers "how far did the work get", so it is the one card
-         without a border: a full-width surface, a 12px tier bar and three
-         20px counts. Every other card stays a 13px-titled box. */
-      return h(Card, {
-        variant: 'primary',
-        title: label('coverage'),
-        hint: `${label('evidenced')} ${coverage.evidenced || 0} / ${coverage.total || 0}`,
-      },
+      return h(Card, { title: label('coverage') },
         h('div', {
-          style: L.bar,
-          role: 'img',
-          'aria-label': `${label('evidenced')} ${coverage.evidenced || 0}, ${label('observed')} ${coverage.observed || 0}, ${label('untouched')} ${coverage.untouched || 0}`,
-        }, tiers.map(tier => (tier.value > 0
-          ? h('div', { key: tier.key, style: { width: `${(tier.value / total) * 100}%`, background: tier.color } })
-          : null))),
-        h('div', { style: L.stats }, tiers.map(tier => h('div', { key: tier.key, style: L.stat },
-          h('span', { style: { ...L.statValue, color: tier.key === 'untouched' ? C.muted : C.text } }, String(tier.value)),
-          h('span', { style: L.statLabel },
-            dot(tier.color),
-            label(tier.key),
-            h('span', { style: { color: C.faint } }, percent(tier.value, coverage.total || 0)))))),
-        h('div', { style: { display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '12px' } },
+          style: L.boxes,
+          role: 'group',
+          'aria-label': boxes.map(box => `${box.label} ${box.value}`).join(', '),
+        }, boxes.map(box => h('div', { key: box.key, style: L.box },
+          h('span', { style: L.boxValue }, String(box.value)),
+          h('span', { style: L.boxLabel }, box.label)))),
+        h('div', { style: L.familyLine },
+          Object.keys(FAMILY_LABEL).filter(key => key !== 'entities').map(key => `${label(`family.${key}`)} ${(counts || {})[key] || 0}`).join(' · ')),
+        h('div', { style: L.field },
           h('span', { style: L.fieldLabel }, `${label('untestedEntities')} ${untouched.length}`),
           untouched.length === 0
             ? h(Empty, { text: label('none') })
             : h('div', { style: L.chips }, untouched.map(entity => h('span', {
               key: entity.id,
-              style: { ...L.code, display: 'inline-flex', gap: '5px', alignItems: 'baseline', color: C.muted },
+              style: L.chip,
               title: entity.id,
-            },
-            h('span', { style: { color: C.faint } }, entity.type || 'other'),
-            h('span', null, entity.value === undefined ? entity.id : String(entity.value)))))),
-        h('div', { style: L.footer },
-          Object.keys(FAMILY_LABEL).map(key => tag(`${label(`family.${key}`)} ${(counts || {})[key] || 0}`, C.muted))))
+            }, `${entity.type || 'other'} ${entity.value === undefined ? entity.id : String(entity.value)}`)))))
     }
 
     function FrontierCard({ items, t }) {
@@ -1080,33 +1256,28 @@ window.__ModuleLoader__.load({
            capped list from reading like the whole backlog. */
         hint: `${label('topPrefix')} ${items.length} ${label('topSuffix')}`.replace(/\s+/g, ' ').trim(),
       },
-        h('ul', { style: L.list }, items.map(item => h('li', {
-          key: item.id,
-          style: { ...L.item, borderLeftColor: item.ready ? C.success : C.warn },
-        },
-        h('div', { style: L.itemHead },
-          tag(fmtScore(item.score), item.ready ? C.success : C.warn),
-          tag(item.ready ? label('ready') : label('notReady'), item.ready ? C.success : C.warn),
-          h('span', { style: { ...L.itemTitle, flex: '1 1 200px' } }, item.title),
-          item.state && item.state !== 'open'
-            ? tag(label(`state.${item.state}`), C.faint)
-            : null,
-          idTag(item.id)),
-        (item.decides || []).length > 0
-          ? h('div', { style: { ...L.row, alignItems: 'center' } },
-            h('span', { style: L.fieldLabel }, label('decides')),
-            h('div', { style: L.chips }, item.decides.map(reading => tag(reading, C.faint))))
-          : null,
-        item.expectedObservation ? field(label('expectedObservation'), item.expectedObservation) : null,
-        (item.missingDeps || []).length > 0
-          ? h('div', { style: { ...L.row, alignItems: 'center' } },
-            h('span', { style: L.fieldLabel }, label('missingDeps')),
-            h('div', { style: L.chips }, item.missingDeps.map(dep => tag(dep, C.warn))))
-          : null,
-        h('div', { style: { ...L.row, gap: '10px', color: C.faint, fontSize: '11px' } },
-          h('span', null, `${label('uncertainty')} ${Math.round((Number(item.uncertainty) || 0) * 100)}%`),
-          h('span', null, `${label('cost')} ${item.cost === undefined ? '—' : item.cost}`),
-          item.goalId ? h('span', null, `${label('family.goals')} ${item.goalId}`) : null)))))
+        h('ul', { style: L.entries }, items.map(item => h('li', { key: item.id, style: L.entry },
+          h('div', { style: L.entryHead },
+            h('h4', { style: L.entryTitle }, item.title),
+            idText(item.id)),
+          h('p', { style: L.entryMeta },
+            [`${label('score')} ${fmtScore(item.score)}`, item.ready ? label('ready') : label('notReady'),
+              item.state && item.state !== 'open' ? label(`state.${item.state}`) : ''].filter(Boolean).join(' · ')),
+          item.expectedObservation ? h('p', { style: L.entryText }, item.expectedObservation) : null,
+          ((item.decides || []).length === 0 && (item.missingDeps || []).length === 0) ? null : h('div', { style: L.blocks },
+            (item.decides || []).length > 0
+              ? h('div', { style: L.block },
+                h('span', { style: L.blockLabel }, label('decides')),
+                h('div', { style: L.chips }, item.decides.map(reading => h('span', { key: reading, style: L.chip }, reading))))
+              : null,
+            (item.missingDeps || []).length > 0
+              ? h('div', { style: L.block },
+                h('span', { style: L.blockLabel }, label('missingDeps')),
+                h('div', { style: L.chips }, item.missingDeps.map(dep => h('span', { key: dep, style: L.chip }, dep))))
+              : null),
+          h('p', { style: L.entryMeta },
+            `${label('uncertainty')} ${Math.round((Number(item.uncertainty) || 0) * 100)}% · ${label('cost')} ${item.cost === undefined ? '—' : item.cost}` +
+            (item.goalId ? ` · ${label('family.goals')} ${item.goalId}` : ''))))))
     }
 
     function ReviewCard({ items, t }) {
@@ -1123,29 +1294,29 @@ window.__ModuleLoader__.load({
         count: items.length,
         hint: order.length > 1 ? `${order.length} ${label('groups')}` : null,
       },
-        items.length === 0 ? h(Empty, { text: label('none') }) : h('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
+        items.length === 0 ? h(Empty, { text: label('none') }) : h('div', { style: L.groups },
           order.map(status => {
             const rows = groups.get(status)
             const color = STATUS_COLOR[status] || C.muted
-            return h('div', { key: status, style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
-              h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', paddingBottom: '3px', borderBottom: C.border } },
+            return h('div', { key: status, style: L.group },
+              h('div', { style: L.groupHead },
                 dot(color),
-                h('span', { style: { fontSize: '12px', fontWeight: 600, color } }, label(`status.${status}`)),
-                tag(String(rows.length), color)),
-              h('ul', { style: L.list }, rows.map((item, index) => h('li', { key: `review-${status}-${index}`, style: L.row },
-                idTag(item.ref),
-                item.kind ? tag(label(`kind.${item.kind}`), C.faint) : null,
-                h('span', { style: L.rowText }, item.text)))))
+                h('span', { style: L.groupTitle }, label(`status.${status}`)),
+                h('span', { style: L.groupCount }, String(rows.length))),
+              h('ul', { style: L.rows }, rows.map((item, index) => h('li', { key: `review-${status}-${index}`, style: L.row },
+                idText(item.ref),
+                h('span', { style: L.rowText }, item.text),
+                item.kind ? h('span', { style: L.rowTail }, label(`kind.${item.kind}`)) : null))))
           })))
     }
 
     function GapsCard({ gaps, t }) {
       const label = key => (t ? t(key) : (zh[key] ?? key))
       const quadrants = [
-        { key: 'assumed', title: label('assumed'), color: C.warn, rows: (gaps.assumed || []).map(item => ({ id: item.id, text: item.text })) },
-        { key: 'negative', title: label('negative'), color: C.faint, rows: (gaps.negative || []).map(item => ({ id: item.id, text: item.text })) },
-        { key: 'untested', title: label('untested'), color: C.faint, rows: (gaps.untestedEntities || []).map(item => ({ id: item.id, text: `${item.type || 'other'} ${item.value === undefined ? '' : item.value}`.trim() })) },
-        { key: 'unsupported', title: label('unsupported'), color: C.info, rows: (gaps.unsupportedClaims || []).map(item => ({ id: item.id, text: item.title })) },
+        { key: 'assumed', title: label('assumed'), rows: (gaps.assumed || []).map(item => ({ id: item.id, text: item.text })) },
+        { key: 'negative', title: label('negative'), rows: (gaps.negative || []).map(item => ({ id: item.id, text: item.text })) },
+        { key: 'untested', title: label('untested'), rows: (gaps.untestedEntities || []).map(item => ({ id: item.id, text: `${item.type || 'other'} ${item.value === undefined ? '' : item.value}`.trim() })) },
+        { key: 'unsupported', title: label('unsupported'), rows: (gaps.unsupportedClaims || []).map(item => ({ id: item.id, text: item.title })) },
       ]
       const extra = [
         { key: 'blocked', title: label('blockedIntents'), rows: (gaps.blockedIntents || []).map(item => ({ id: item.id, text: item.title })) },
@@ -1155,29 +1326,26 @@ window.__ModuleLoader__.load({
       ].filter(group => group.rows.length > 0)
       const total = quadrants.reduce((sum, group) => sum + group.rows.length, 0)
       return h(Card, { title: label('gaps'), count: total, hint: label('gapHint') },
-        h('div', { style: L.columns }, quadrants.map(group => h('div', {
-          key: group.key, style: { display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 },
-        },
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
-          dot(group.color),
-          h('span', { style: { fontSize: '12px', fontWeight: 600, color: C.text } }, group.title),
-          tag(String(group.rows.length), group.color)),
-        group.rows.length === 0
-          ? h(Empty, { text: label('none') })
-          : h('ul', { style: L.list }, group.rows.map((row, index) => h('li', { key: `${group.key}-${index}`, style: L.row },
-            idTag(row.id),
-            h('span', { style: L.rowText }, row.text))))))),
-        extra.length === 0 ? null : h('div', {
-          style: { display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '12px', paddingTop: '10px', borderTop: C.border },
-        }, extra.map(group => h('div', { key: group.key, style: { ...L.row, alignItems: 'center' } },
-          h('span', { style: { ...L.fieldLabel, minWidth: '84px' } }, group.title),
-          h('div', { style: L.chips }, group.rows.slice(0, 8).map((row, index) => h('span', {
-            key: `${group.key}-x${index}`, style: L.code, title: row.id,
-          }, row.text))),
-          group.rows.length > 8 ? tag(`+${group.rows.length - 8}`, C.faint) : null))))
+        h('div', { style: L.quadGrid }, quadrants.map(group => h('div', { key: group.key, style: L.group },
+          h('div', { style: L.groupHead },
+            h('span', { style: L.groupTitle }, group.title),
+            h('span', { style: L.groupCount }, String(group.rows.length))),
+          group.rows.length === 0
+            ? h('p', { style: { ...L.empty, padding: '4px 0' } }, label('none'))
+            : h('ul', { style: L.rows }, group.rows.map((row, index) => h('li', { key: `${group.key}-${index}`, style: L.row },
+              idText(row.id),
+              h('span', { style: L.rowText }, row.text))))))),
+        extra.length === 0 ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+          extra.map(group => h('div', { key: group.key, style: L.extraRow },
+            h('span', { style: { ...L.groupTitle, minWidth: '84px' } }, group.title),
+            h('div', { style: L.chips }, group.rows.slice(0, 8).map((row, index) => h('span', {
+              key: `${group.key}-x${index}`, style: L.chip, title: row.id,
+            }, row.text))),
+            group.rows.length > 8 ? h('span', { style: L.rowTail }, `+${group.rows.length - 8}`) : null))))
     }
 
-    function ReportCard({ report, t }) {
+    /** The 报告 tab: thin toolbar over a bordered, 72ch Markdown panel. */
+    function ReportCard({ report, onRefresh, t }) {
       const label = key => (t ? t(key) : (zh[key] ?? key))
       const [copied, setCopied] = React.useState(false)
       const copy = () => {
@@ -1195,22 +1363,23 @@ window.__ModuleLoader__.load({
         ? h(Empty, { text: label('loading') })
         : report.status === 'error'
           ? h('p', { style: { ...L.notice, color: C.error }, role: 'alert' }, report.error)
-          : h('div', { style: L.mdBody }, markdownNodes(report.markdown || '', 'report'))
-      return h(Card, {
-        title: label('reportTitle', '报告'),
-        hint: label('reportHint'),
-        tail: report.status === 'ready'
-          ? h('button', { type: 'button', 'data-mw-button': '', style: L.button, onClick: copy }, copied ? label('copied') : label('copy'))
-          : null,
-      }, h('div', { 'aria-live': 'polite', style: { minWidth: 0 } }, body, copied
-        ? h('span', { role: 'status', style: { ...L.empty, display: 'block', marginTop: '6px' } }, label('copied'))
-        : null))
+          : h('div', { style: L.mdColumn }, markdownNodes(report.markdown || '', 'report'))
+      return h('section', { style: L.reportRoot, 'data-testid': 'makeworld-ledger-report' },
+        h('header', { style: L.reportBar },
+          h('p', { style: L.reportBarHint }, label('reportHint')),
+          h('div', { style: L.actions },
+            h('button', { type: 'button', 'data-mw-action': '', style: L.action, onClick: copy, disabled: report.status !== 'ready' },
+              copied ? label('copied') : label('copy')),
+            h('button', { type: 'button', 'data-mw-action': '', style: L.action, onClick: onRefresh }, label('regenerate')))),
+        h('div', { style: { ...L.markdownPanel, display: 'flex', flexDirection: 'column' }, 'aria-live': 'polite' }, body),
+        copied ? h('span', { role: 'status', style: L.reportBarHint }, label('copied')) : null)
     }
 
     /* ------------------------------------------------------------- ledger --- */
 
     /**
-     * Read-only ledger view: objective, coverage, frontier, open items, gaps.
+     * Read-only ledger view: a flat header, two sub-tabs, and every section at
+     * the same visual weight in one grid.
      *
      * Root contract: the `data-conversation-composer-overlay` opt-in.
      * ui-conversation ships, as product CSS, both
@@ -1228,18 +1397,29 @@ window.__ModuleLoader__.load({
      * attribute is scoped to this view, is read by the host's own stylesheet,
      * and disappears with the view.
      */
-    function LedgerPanel({ sessionId, t }) {
+    function LedgerPanel({ sessionId, t, useProjection }) {
       const label = (key, fallback) => (t ? t(key) : (fallback === undefined ? (zh[key] ?? key) : fallback))
-      const [nonce, setNonce] = React.useState(0)
-      const state = useLedger(sessionId, nonce)
-      const { report, open, close } = useReport(sessionId)
+      const [tab, setTab] = React.useState('ledger')
+      const projection = typeof useProjection === 'function' ? useProjection('makeworldLedger') : undefined
+      const revision = projection === null || projection === undefined ? 0 : (projection.revision || 0)
+      /* undefined = the projection row is absent (no push at all); null = registered but idle. */
+      const { refresh, state } = useLiveLedger(sessionId, revision, projection !== undefined)
+      const { report, open } = useReport(sessionId)
+      const hasSession = !(sessionId === undefined || sessionId === null || sessionId === '')
+
+      /* The report is fetched when its tab is first shown, then kept: switching
+         back and forth must not re-read the deliverable. */
+      React.useEffect(() => {
+        if (tab !== 'report' || !hasSession) return
+        if (report.status === 'closed') open()
+      }, [tab, hasSession, report.status])
 
       const data = state.status === 'ready' ? state.data : undefined
       const task = data && data.task ? data.task : undefined
-      const refresh = () => setNonce(value => value + 1)
 
-      /* Health rows: unparsable log lines, structural problems, reference
-         cycles. They come first because everything below them may be wrong. */
+      /* Structural problems: broken lines, structural problems, reference
+         cycles. They ride one strip above the grid, because everything below
+         may be wrong when they exist. */
       const brokenLines = data && (data.brokenLines || []).length > 0
         ? ` · ${label('atLines')} ${(data.brokenLines || []).join(', ')}`
         : ''
@@ -1269,82 +1449,97 @@ window.__ModuleLoader__.load({
           text: Array.isArray(cycle) ? cycle.join(' → ') : String(cycle),
         }))),
       ]
-      /* One row may stand for several broken lines, so the badge counts rows —
-         the same thing the card lists, and the same thing a reader can see. */
       const healthCount = health.length
 
       const counts = (data && data.counts) || {}
       /* Reference and ledger problems are structure, not work: they belong to
-         the health card, so the open-items count stays a count of open work. */
-      const reviewItems = ((data && data.review) || []).filter(item => item.kind !== 'reference' && item.kind !== 'ledger')
+         the strip, so the open-items count stays a count of open work. */
+      /* reference/ledger problems live in the health strip; an unsupported claim is
+         already a gap, so listing it again here would say the same thing twice. */
+      const reviewItems = ((data && data.review) || []).filter(item => item.kind !== 'reference' && item.kind !== 'ledger' && item.status !== 'unsupported')
+
+      const metaLine = h('div', { style: L.metaLine },
+        task && task.subject ? h('span', { style: L.metaItem }, task.subject) : null,
+        task && task.acceptance
+          ? h('span', { style: L.metaItem }, `${label('acceptance', '验收')} ${task.acceptance}`)
+          : null,
+        task && task.openedAt
+          ? h('span', { style: L.metaItem }, `${label('openedAt', '开场')} ${task.openedAt}`)
+          : null,
+        data && data.ledger
+          ? h('span', { style: L.metaItem, title: data.ledger }, `${label('path', '账本路径')} ${data.ledger}`)
+          : null)
+
       const header = h('header', { style: L.header },
         h('div', { style: L.headerMain },
-          h('h2', { style: L.title }, (task && task.objective) || label('ledger', '账本')),
-          h('div', { style: L.subtitle },
-            task && task.subject
-              ? h('span', { style: L.subtitleItem }, h('span', { style: L.subtitleLabel }, label('subject', '主体')), h('span', null, task.subject))
-              : null,
-            task && task.acceptance
-              ? h('span', { style: L.subtitleItem }, h('span', { style: L.subtitleLabel }, label('acceptance', '验收')), h('span', null, task.acceptance))
-              : null,
-            task && task.openedAt
-              ? h('span', { style: L.subtitleItem }, h('span', { style: L.subtitleLabel }, label('openedAt', '开场')), h('time', { dateTime: task.openedAt }, task.openedAt))
-              : null,
-            data && data.lastAt
-              ? h('span', { style: L.subtitleItem }, h('span', { style: L.subtitleLabel }, label('updatedAt', '更新')), h('time', { dateTime: data.lastAt }, data.lastAt))
-              : null,
-            data && data.ledger
-              ? h('span', { style: L.subtitleItem }, h('span', { style: L.subtitleLabel }, label('path', '账本路径')), h('code', { style: L.code, title: data.ledger }, data.ledger))
-              : null)),
-        h('div', { style: L.headerSide },
-          h('div', { style: L.badgeRow },
-            data === undefined
-              /* Counts before the snapshot lands would read as real zeros. */
-              ? tag(label('loading'), C.faint)
-              : [
-                /* Only two: every other number already has a card of its own
-                   below, and the health badge is the one that changes colour. */
-                tag(`${label('events', '事件')} ${counts.events || 0}`, C.muted),
-                healthCount > 0
-                  ? tag(`${label('inconsistent')} ${healthCount}`, C.warn)
-                  : tag(label('consistent'), C.success),
-              ]),
-          h('div', { style: L.actions },
-            h('button', { type: 'button', 'data-mw-button': '', style: L.button, onClick: refresh }, label('refresh', '刷新')),
-            report.status === 'closed'
-              ? h('button', {
-                type: 'button', 'data-mw-button': '', style: L.button, onClick: open,
-                disabled: sessionId === undefined || sessionId === null || sessionId === '',
-              }, label('report', '看报告'))
-              : h('button', { type: 'button', 'data-mw-button': '', style: L.button, onClick: close }, label('closeReport', '收起报告')))))
+          h('h2', { style: L.title, title: (task && task.objective) || label('ledger', '账本') },
+            (task && task.objective) || label('ledger', '账本')),
+          metaLine),
+        h('div', { style: L.headerActions },
+          h(SyncBadge, { status: state.status, refreshing: state.refreshing === true, lastAt: data && data.lastAt, t }),
+          h('button', {
+            type: 'button', 'data-mw-action': '', style: L.action, onClick: refresh, disabled: !hasSession,
+          }, label('refresh', '刷新'))))
+
+      const tabs = h('nav', {
+        style: L.tabs, 'data-testid': 'makeworld-ledger-tabs', role: 'tablist', 'aria-label': label('ledger', '账本'),
+      },
+      [
+        { id: 'ledger', label: label('ledger', '账本'), disabled: false },
+        { id: 'report', label: label('reportTitle', '报告'), disabled: !hasSession },
+      ].map(item => h('button', {
+        key: item.id,
+        type: 'button',
+        role: 'tab',
+        'data-mw-tab': '',
+        'aria-selected': tab === item.id,
+        'data-testid': `makeworld-ledger-tab-${item.id}`,
+        disabled: item.disabled,
+        style: tab === item.id ? { ...L.tab, ...L.tabActive } : L.tab,
+        onClick: () => setTab(item.id),
+      }, item.label)),
+      healthCount > 0
+        ? h('span', { style: L.tabTail }, tag(String(healthCount), C.muted))
+        : null)
 
       let body
-      if (state.status === 'no-session') body = h(Empty, { text: label('noSession', '没有可读取的会话。') })
+      const scrolls = tab !== 'report'
+      if (tab === 'report') {
+        body = h(ReportCard, {
+          report: hasSession ? report : { status: 'error', error: label('noSession', '没有可读取的会话。') },
+          onRefresh: open,
+          t,
+        })
+      } else if (state.status === 'no-session') body = h(Empty, { text: label('noSession', '没有可读取的会话。') })
       else if (state.status === 'loading' || state.status === 'idle') {
         body = h('p', { style: L.notice, 'aria-live': 'polite' }, label('loading', '正在读账本…'))
       } else if (state.status === 'error') {
         body = h('p', { style: { ...L.notice, color: C.error }, role: 'alert' }, state.error)
       } else if (!data.initialized) {
-        body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
+        body = [
+          /* The strip is above the note, so "上面列出的行" stays true. */
           health.length === 0 ? null : h(HealthCard, { rows: health, count: healthCount, t }),
-          /* The host's `hint` is Chinese server copy; the page speaks whatever
-             language the client is bound to, so it uses its own strings. */
           h('p', { style: L.notice, 'aria-live': 'polite' },
+            /* The host's `hint` is Chinese server copy; the page speaks whatever
+               language the client is bound to, so it uses its own strings. */
             data.broken
               ? label('emptyBroken', '账本读不出任何记录，先修好上面列出的行。')
-              : label('empty', '这个会话还没有开场。')))
+              : label('empty', '这个会话还没有开场。')),
+        ]
       } else {
-        body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
+        body = [
           health.length === 0 ? null : h(HealthCard, { rows: health, count: healthCount, t }),
-          h(CoverageCard, {
-            coverage: data.coverage || { total: 0, evidenced: 0, observed: 0, untouched: 0, entities: [] },
-            counts,
-            t,
-          }),
-          h(FrontierCard, { items: data.frontier || [], t }),
-          h(ReviewCard, { items: reviewItems, t }),
-          h(GapsCard, { gaps: data.gaps || {}, t }),
-          h('p', { style: { ...L.empty, fontSize: '11px' } }, label('scoreHint')))
+          h('div', { style: L.grid },
+            h(CoverageCard, {
+              coverage: data.coverage || { total: 0, evidenced: 0, observed: 0, untouched: 0, entities: [] },
+              counts,
+              t,
+            }),
+            h(FrontierCard, { items: data.frontier || [], t }),
+            h(ReviewCard, { items: reviewItems, t }),
+            h(GapsCard, { gaps: data.gaps || {}, t })),
+          h('p', { style: L.footnote }, label('scoreHint')),
+        ]
       }
 
       return h('div', {
@@ -1357,8 +1552,12 @@ window.__ModuleLoader__.load({
         'aria-label': label('ledger', '账本'),
       },
         header,
-        report.status === 'closed' ? null : h(ReportCard, { report, t }),
-        body)
+        tabs,
+        h('div', {
+          'data-testid': 'makeworld-ledger-content',
+          'data-scrolls': scrolls ? 'true' : 'false',
+          style: scrolls ? L.content : L.contentReport,
+        }, body))
     }
 
     /**
@@ -1384,8 +1583,12 @@ window.__ModuleLoader__.load({
       '[data-makeworld-ledger] button:focus-visible {',
       '  outline: 2px solid var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, #4f46e5));',
       '  outline-offset: 2px; }',
-      '[data-makeworld-ledger] [data-mw-button]:hover { background: var(--dsw-alias-bg-layer-3, rgba(127,127,127,.18)); }',
-      '[data-makeworld-ledger] [data-mw-button]:disabled { opacity: .5; cursor: default; }',
+      '[data-makeworld-ledger] [data-mw-tab]:hover:not([aria-selected="true"]):not(:disabled) {',
+      '  color: var(--dsw-alias-label-secondary, #60646c); }',
+      /* The report toolbar is text-only: hover to primary ink, no box. */
+      '[data-makeworld-ledger] [data-mw-action]:hover:not(:disabled) {',
+      '  color: var(--dsw-alias-label-primary, #1b1b1f); text-decoration: underline; }',
+      '[data-makeworld-ledger] [data-mw-action]:disabled, [data-makeworld-ledger] [data-mw-tab]:disabled { opacity: .5; cursor: default; }',
       '@media (max-width: 560px) {',
       '  [data-makeworld-ledger] { padding-left: 12px !important; padding-right: 12px !important; } }',
       '[data-conversation-scroll]:has([data-makeworld-ledger]) [data-composer-card]::after { display: none; }',
@@ -1452,7 +1655,7 @@ window.__ModuleLoader__.load({
         order: 40,
         locale: NS,
         label: () => t('ledger'),
-      }, (props) => h(LedgerPanel, { sessionId: props.sessionId, t: props.t })))
+      }, (props) => h(LedgerPanel, { sessionId: props.sessionId, t: props.t, useProjection: props.useProjection })))
       ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
         name: 'sidebar.panellist',
         id: 'makeworld-panel',
@@ -1469,7 +1672,8 @@ window.__ModuleLoader__.load({
     exports.__test = {
       parseMarkdown, parseInline, markdownNodes, LEDGER_CSS,
       dictionaries: { zh, en },
-      LedgerPanel, CoverageCard, FrontierCard, ReviewCard, GapsCard, HealthCard, ReportCard, Card, tag,
+      LedgerPanel, CoverageCard, FrontierCard, ReviewCard, GapsCard, HealthCard, ReportCard, SyncBadge, Card, tag,
+      useLiveLedger,
     }
     return module.exports
   },

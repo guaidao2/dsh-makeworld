@@ -110,6 +110,7 @@ dsh plugin --profile web add <path-to-dsh-makeworld>
 | `makeworld-mcp` | MCP 桥，复用官方 `@deepseek-ai/dsh-mcp-client`；面板走 `/makeworld/mcp` |
 | `makeworld-ui` | 网页端：会话顶栏的只读账本页签 + 侧栏的平台面板（环境增强 / MCP） |
 | `makeworld-ledger-page` | 账本页的数据接口 `/makeworld/ledger`：按会话读出前沿、缺口、覆盖与待处理项；只读，不写账本 |
+| `makeworld-ledger-version` | 会话投影：`cairn_*` 写一次就推一次 revision，页面据此重读文件（定时器只是兜底） |
 
 平台层的数据域在 0.1.0 从 `lingeye` 改名为 `makeworld`，没有做迁移：旧的 Git Bash 开关与 MCP 服务器列表需要在新面板里重填一次。账本不受影响（它不在存储域里）。
 
@@ -123,7 +124,7 @@ dsh plugin --profile web add <path-to-dsh-makeworld>
 npm test
 ```
 
-账本侧 61 个测试：折叠、三档覆盖、就绪排序、报告缺口、原子批、严格 settle、证据退役级联、反事实、关系模板、悬空与错族引用、id 防伪、证据寻址、旧格式兼容，以及文件层 open → write（含 alias）→ settle → export 全流程；页面与路由 11 个（合并、截断、健康字段、HEAD、未知视图、非 owner、读失败、会话校验）；前端 19 个（注册、markdown、四态、字典对齐、标题阶梯）；平台层 19 个（ACL 补丁 / Git Bash / 环境 / MCP）。
+账本侧 66 个测试：折叠、三档覆盖、就绪排序、报告缺口、原子批、严格 settle、证据退役级联、反事实、关系模板、悬空与错族引用、id 防伪、证据寻址、旧格式兼容，以及文件层 open → write（含 alias）→ settle → export 全流程；页面与路由 11 个（合并、截断、健康字段、HEAD、未知视图、非 owner、读失败、会话校验）；前端 26 个（注册、版式、markdown、四态、字典对齐、推送与两级兜底）；平台层 19 个（ACL 补丁 / Git Bash / 环境 / MCP）。
 
 ## 许可
 

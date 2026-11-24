@@ -58,6 +58,12 @@
     - id: makeworld-ledger-page
       name: 'dsh-makeworld/ledger-panel'
 
+    # Session projection: a revision counter bumped by cairn_* writes. The page
+    # subscribes and re-reads the file when it moves; that is the push signal,
+    # the timer in the page is only a fallback.
+    - id: makeworld-ledger-version
+      name: 'dsh-makeworld/ledger-version'
+
     # Optional Git Bash environment enhancement. Disabled by default. The
     # control-center switch registers a host-global `bash` tool and adds a
     # guard that refuses `pwsh` calls while it is active; a guard cannot remove
