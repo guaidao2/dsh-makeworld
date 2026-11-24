@@ -1,0 +1,79 @@
+# dsh-makeworld bundle patch.
+#
+# Two layers live in one package, and they are deliberately independent:
+#
+#   cognition   makeworld-ledger + makeworld-tools
+#               The task ledger (.cairn/ in the working directory) and the five
+#               tools that write it. No mode, no preset: add the tools row to
+#               whichever preset should get a ledger, or leave it at the root.
+#
+#   platform    acl-patch / gitbash / environment / mcp / ui
+#               Host conveniences that have nothing to do with beliefs: the
+#               Windows sandbox workaround, an opt-in Git Bash shell, read-only
+#               cookie diagnostics, the MCP bridge, and the control center the
+#               human uses to flip those switches. Each is its own row and each
+#               can be disabled without touching the ledger.
+#
+# Row ids are global across all layers. Do NOT insert these rows again from a
+# profile patch: a repeated insert only pushes another entry, and group.update
+# folds them with last-write-wins, so the second copy silently wins and any
+# later config edit lands on the copy you did not expect.
+
+- insert:
+    # Built-in workaround for the DSH Windows ACL sandbox on non-system-drive
+    # workspaces (vendored MIT; no ACL changes). Windows-only; override this row
+    # with `config: { enabled: false }` to disable it.
+    - id: makeworld-acl-patch
+      name: 'dsh-makeworld/acl-patch'
+      disabled: !!js process.platform !== 'win32'
+
+    # Package root: inert host seat plus the client half the Web plugin table
+    # attributes the browser bundle to (the scanner keys it by package name).
+    - id: makeworld-ui
+      name: 'dsh-makeworld'
+
+    # Platform store: the two-table `makeworld` domain the control panel, MCP
+    # bridge and Git Bash switch read and write. The ledger does NOT use it —
+    # task beliefs live in the working directory, not in the profile.
+    - id: makeworld-platform
+      name: 'dsh-makeworld/store'
+
+    # The task ledger: append-only jsonl + derived markdown under <cwd>/.cairn.
+    - id: makeworld-ledger
+      name: 'dsh-makeworld/ledger'
+      config:
+        dirName: .cairn
+        writeMarkdown: true
+
+    # Five tools and one prompt section. Mounted at the profile root so every
+    # preset inherits it; set `promptSection: false` to keep the tools but drop
+    # the protocol text.
+    - id: makeworld-tools
+      name: 'dsh-makeworld/tools-row'
+      config:
+        promptSection: true
+
+    # Optional Git Bash environment enhancement. Disabled by default. The
+    # control-center switch registers a host-global `bash` tool and adds a
+    # guard that refuses `pwsh` calls while it is active; a guard cannot remove
+    # a registered tool, so `pwsh` stays in the schema unless a preset drops
+    # the base bundle's tool-pwsh row.
+    - id: makeworld-gitbash
+      name: 'dsh-makeworld/gitbash'
+      disabled: !!js process.platform !== 'win32'
+      config:
+        timeoutMs: 120000
+        maxTimeoutMs: 600000
+        maxOutputBytes: 64000
+        maxSpillBytes: 67108864
+        graceMs: 3000
+
+    # Read-only environment diagnostics for the control center: Git Bash status
+    # and the count/size of dsh-auth-* cookies on the current request.
+    - id: makeworld-environment
+      name: 'dsh-makeworld/environment'
+
+    # MCP configuration bridge: mounts one official dsh-mcp-client instance per
+    # enabled row; no second MCP transport implementation.
+    - id: makeworld-mcp
+      name: 'dsh-makeworld/mcp'
